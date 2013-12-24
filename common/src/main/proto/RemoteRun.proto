@@ -1,0 +1,11 @@
+option java_package = "com.twock.remoterun.common.proto";
+
+message RunRequest {
+  required string cmd = 1;
+  repeated string args = 2;
+  message Environment {
+    required string key = 1;
+    required string value = 2;
+  }
+  repeated Environment environment = 3;
+}

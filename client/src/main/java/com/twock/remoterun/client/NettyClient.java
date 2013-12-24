@@ -1,23 +1,18 @@
 package com.twock.remoterun.client;
 
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.security.KeyStore;
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
+import javax.net.ssl.*;
 
 import com.twock.remoterun.common.KeyStoreUtil;
 import com.twock.remoterun.common.RemoteRunException;
+import com.twock.remoterun.common.proto.RemoteRun;
 import org.jboss.netty.bootstrap.ClientBootstrap;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
-import org.jboss.netty.handler.codec.frame.LineBasedFrameDecoder;
-import org.jboss.netty.handler.codec.string.StringDecoder;
-import org.jboss.netty.handler.codec.string.StringEncoder;
-import org.jboss.netty.handler.logging.LoggingHandler;
+import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
+import org.jboss.netty.handler.codec.frame.LengthFieldPrepender;
+import org.jboss.netty.handler.codec.protobuf.ProtobufDecoder;
+import org.jboss.netty.handler.codec.protobuf.ProtobufEncoder;
 import org.jboss.netty.handler.ssl.SslHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,15 +28,15 @@ public class NettyClient {
     bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
       @Override
       public ChannelPipeline getPipeline() throws Exception {
-        SslHandler sslHandler = new SslHandler(createSslEngine());
         return Channels.pipeline(
-          new LoggingHandler(),
-          sslHandler,
-          new LoggingHandler(),
-          new LineBasedFrameDecoder(1024),
-          new StringDecoder(),
-          new StringEncoder(),
-          new LoggingHandler(),
+          new SslHandler(createSslEngine()),
+
+          new LengthFieldBasedFrameDecoder(1048576, 0, 4, 0, 4),
+          new LengthFieldPrepender(4),
+
+          new ProtobufDecoder(RemoteRun.RunRequest.getDefaultInstance()),
+          new ProtobufEncoder(),
+
           new SimpleChannelHandler() {
             @Override
             public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
@@ -52,7 +47,7 @@ public class NettyClient {
               handshakeFuture.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture channelFuture) throws Exception {
-                  channelFuture.getChannel().write("Boo, this is from the client\r\n");
+                  channelFuture.getChannel().write(RemoteRun.RunRequest.newBuilder().setCmd("echo").addArgs("hello").build());
                 }
               });
             }
@@ -74,13 +69,15 @@ public class NettyClient {
     });
     bootstrap.setOption("tcpNoDelay", true);
     bootstrap.setOption("keepAlive", true);
-    bootstrap.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(), 1081));
+    bootstrap.connect(new InetSocketAddress(1081));
   }
 
   public static SSLEngine createSslEngine() {
     try {
       SSLContext sslContext = SSLContext.getInstance("TLSv1.1");
-      sslContext.init(KeyStoreUtil.createKeyStore(), null, null);
+      KeyManager[] keyManagers = KeyStoreUtil.createKeyStore("JKS", "ssl/client1-keystore.jks", "123456");
+      TrustManager[] trustManagers = KeyStoreUtil.createTrustStore("JKS", "ssl/ca-truststore.jks", "123456");
+      sslContext.init(keyManagers, trustManagers, null);
       SSLEngine sslEngine = sslContext.createSSLEngine();
       sslEngine.setUseClientMode(true);
       return sslEngine;
