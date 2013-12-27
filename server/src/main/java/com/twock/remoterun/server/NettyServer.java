@@ -1,9 +1,6 @@
 package com.twock.remoterun.server;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.security.*;
-import java.security.cert.CertificateException;
 import javax.net.ssl.*;
 
 import com.twock.remoterun.common.KeyStoreUtil;
@@ -23,12 +20,16 @@ import org.slf4j.LoggerFactory;
 /**
  * @author Chris Pearson
  */
-public class NettyServer {
+public class NettyServer extends SimpleChannelHandler implements ChannelFutureListener {
   private static final Logger log = LoggerFactory.getLogger(NettyServer.class);
+  private static final int DEFAULT_PORT = 1081;
+  private final InetSocketAddress address;
+  private final ServerBootstrap bootstrap;
 
-  public static void main(String[] args) throws CertificateException, UnrecoverableKeyException, NoSuchAlgorithmException, KeyStoreException, KeyManagementException, IOException {
+  public NettyServer(InetSocketAddress address) {
+    this.address = address;
     NioServerSocketChannelFactory factory = new NioServerSocketChannelFactory();
-    ServerBootstrap bootstrap = new ServerBootstrap(factory);
+    bootstrap = new ServerBootstrap(factory);
     bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
       @Override
       public ChannelPipeline getPipeline() throws Exception {
@@ -38,43 +39,15 @@ public class NettyServer {
           new LengthFieldBasedFrameDecoder(1048576, 0, 4, 0, 4),
           new LengthFieldPrepender(4),
 
-          new ProtobufDecoder(RemoteRun.RunRequest.getDefaultInstance()),
+          new ProtobufDecoder(RemoteRun.ClientToServer.getDefaultInstance()),
           new ProtobufEncoder(),
 
-          new SimpleChannelHandler() {
-            @Override
-            public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception {
-              ctx.sendUpstream(e);
-              log.info("Exception caught, closing channel to client from " + ctx.getChannel().getRemoteAddress().toString(), e.getCause());
-              ctx.getChannel().close();
-            }
-
-            @Override
-            public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-              log.debug("Received " + e.getMessage());
-              ctx.sendUpstream(e);
-            }
-
-            @Override
-            public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-              ctx.sendUpstream(e);
-              log.info("Client connected from " + ctx.getChannel().getRemoteAddress().toString());
-            }
-
-            @Override
-            public void channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-              ctx.sendUpstream(e);
-              log.info("Client disconnected from " + ctx.getChannel().getRemoteAddress().toString());
-            }
-          }
+          NettyServer.this
         );
       }
     });
     bootstrap.setOption("child.tcpNoDelay", true);
     bootstrap.setOption("child.keepAlive", true);
-    InetSocketAddress localAddress = new InetSocketAddress(1081);
-    bootstrap.bind(localAddress);
-    log.info("Listening for connections on " + localAddress.toString());
   }
 
   public static SSLEngine createSslEngine() {
@@ -91,5 +64,50 @@ public class NettyServer {
     } catch(Exception e) {
       throw new RemoteRunException("Failed to create server SSLEngine", e);
     }
+  }
+
+  public static void main(String[] args) {
+    new NettyServer(new InetSocketAddress(DEFAULT_PORT)).bind();
+  }
+
+  public void bind() {
+    bootstrap.bind(address);
+    log.info("Listening for connections on " + address.toString());
+  }
+
+  @Override
+  public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception {
+    ctx.sendUpstream(e);
+    ctx.getChannel().close();
+    log.info("Exception caught, closing channel to client from " + ctx.getChannel().getRemoteAddress().toString(), e.getCause());
+  }
+
+  @Override
+  public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
+    log.debug("Received " + e.getMessage());
+    ctx.sendUpstream(e);
+  }
+
+  @Override
+  public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+    final SslHandler sslHandler = ctx.getPipeline().get(SslHandler.class);
+    sslHandler.handshake().addListener(this);
+    log.info("Client connected from " + ctx.getChannel().getRemoteAddress().toString());
+    ctx.sendUpstream(e);
+  }
+
+  @Override
+  public void operationComplete(ChannelFuture future) throws Exception {
+    if(future.isSuccess()) {
+      log.info("Client connection complete from " + future.getChannel().getRemoteAddress());
+    } else {
+      future.getChannel().close();
+    }
+  }
+
+  @Override
+  public void channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+    ctx.sendUpstream(e);
+    log.info("Client disconnected from " + ctx.getChannel().getRemoteAddress().toString());
   }
 }

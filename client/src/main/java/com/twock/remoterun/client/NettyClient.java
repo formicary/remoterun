@@ -1,6 +1,9 @@
 package com.twock.remoterun.client;
 
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
+import java.util.Timer;
+import java.util.TimerTask;
 import javax.net.ssl.*;
 
 import com.twock.remoterun.common.KeyStoreUtil;
@@ -20,11 +23,18 @@ import org.slf4j.LoggerFactory;
 /**
  * @author Chris Pearson
  */
-public class NettyClient {
+public class NettyClient extends SimpleChannelHandler implements ChannelFutureListener {
   private static final Logger log = LoggerFactory.getLogger(NettyClient.class);
+  private static final int DEFAULT_PORT = 1081;
+  private final InetSocketAddress address;
+  private final ClientBootstrap bootstrap;
+  private Channel channel;
+  private ChannelFuture handshakeFuture;
+  private Timer timer;
 
-  public static void main(String[] args) {
-    ClientBootstrap bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory());
+  public NettyClient(InetSocketAddress address) {
+    this.address = address;
+    bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory());
     bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
       @Override
       public ChannelPipeline getPipeline() throws Exception {
@@ -34,42 +44,15 @@ public class NettyClient {
           new LengthFieldBasedFrameDecoder(1048576, 0, 4, 0, 4),
           new LengthFieldPrepender(4),
 
-          new ProtobufDecoder(RemoteRun.RunRequest.getDefaultInstance()),
+          new ProtobufDecoder(RemoteRun.ServerToClient.getDefaultInstance()),
           new ProtobufEncoder(),
 
-          new SimpleChannelHandler() {
-            @Override
-            public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-              log.debug("Channel open");
-              super.channelConnected(ctx, e);
-              final SslHandler sslHandler = ctx.getPipeline().get(SslHandler.class);
-              ChannelFuture handshakeFuture = sslHandler.handshake();
-              handshakeFuture.addListener(new ChannelFutureListener() {
-                @Override
-                public void operationComplete(ChannelFuture channelFuture) throws Exception {
-                  channelFuture.getChannel().write(RemoteRun.RunRequest.newBuilder().setCmd("echo").addArgs("hello").build());
-                }
-              });
-            }
-
-            @Override
-            public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-              log.debug("Received " + e.getMessage());
-              super.messageReceived(ctx, e);
-            }
-
-            @Override
-            public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-              log.debug("Channel closed");
-              super.channelClosed(ctx, e);
-            }
-          }
+          NettyClient.this
         );
       }
     });
     bootstrap.setOption("tcpNoDelay", true);
     bootstrap.setOption("keepAlive", true);
-    bootstrap.connect(new InetSocketAddress(1081));
   }
 
   public static SSLEngine createSslEngine() {
@@ -84,5 +67,79 @@ public class NettyClient {
     } catch(Exception e) {
       throw new RemoteRunException("Failed to create client SSLEngine", e);
     }
+  }
+
+  public static void main(String[] args) {
+    new NettyClient(new InetSocketAddress("127.0.0.1", DEFAULT_PORT)).connect();
+  }
+
+  public ChannelFuture connect() {
+    ChannelFuture connect = bootstrap.connect(address);
+    channel = connect.getChannel();
+    return connect;
+  }
+
+  @Override
+  public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+    log.info("Connected to " + ctx.getChannel().getRemoteAddress());
+    this.channel = ctx.getChannel();
+    final SslHandler sslHandler = ctx.getPipeline().get(SslHandler.class);
+    handshakeFuture = sslHandler.handshake();
+    handshakeFuture.addListener(this);
+    super.channelConnected(ctx, e);
+  }
+
+  @Override
+  public void operationComplete(ChannelFuture future) throws Exception {
+    if(future.isSuccess()) {
+      handshakeFuture = null;
+      log.info("Client SSL handshake completed, connected to " + future.getChannel().getRemoteAddress());
+      // todo: connected successfully
+    } else {
+      future.getChannel().close();
+    }
+  }
+
+  @Override
+  public void channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+    ctx.getChannel().close();
+    ctx.sendUpstream(e);
+  }
+
+  @Override
+  public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception {
+    if (e.getCause() != null
+      && ConnectException.class.equals(e.getCause().getClass())
+      && e.getCause().getMessage() != null
+      && e.getCause().getMessage().startsWith("Connection refused: ")) {
+      log.info(e.getCause().getMessage());
+    } else {
+      log.info("Exception caught, closing channel to server" + (ctx.getChannel().getRemoteAddress() == null ? "" : " at " + ctx.getChannel().getRemoteAddress()), e.getCause());
+    }
+    ctx.sendUpstream(e);
+    ctx.getChannel().close();
+  }
+
+  @Override
+  public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
+    log.debug("Received " + e.getMessage());
+    ctx.sendUpstream(e);
+  }
+
+  @Override
+  public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+    if(ctx.getChannel().getRemoteAddress() != null) {
+      log.info("Disconnected from " + ctx.getChannel().getRemoteAddress());
+    }
+    channel = null;
+    ctx.sendUpstream(e);
+    timer = new Timer();
+    timer.schedule(new TimerTask() {
+      @Override
+      public void run() {
+        connect();
+        timer.cancel();
+      }
+    }, 10000);
   }
 }
