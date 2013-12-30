@@ -4,6 +4,7 @@ import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.Executor;
 import javax.net.ssl.*;
 
 import com.twock.remoterun.common.KeyStoreUtil;
@@ -25,16 +26,17 @@ import org.slf4j.LoggerFactory;
  */
 public class NettyClient extends SimpleChannelHandler implements ChannelFutureListener {
   private static final Logger log = LoggerFactory.getLogger(NettyClient.class);
-  private static final int DEFAULT_PORT = 1081;
+  private static final int RECONNECT_DELAY = 10000;
   private final InetSocketAddress address;
   private final ClientBootstrap bootstrap;
+  private boolean shutdown = false;
   private Channel channel;
   private ChannelFuture handshakeFuture;
   private Timer timer;
 
-  public NettyClient(InetSocketAddress address) {
+  public NettyClient(InetSocketAddress address, Executor bossExecutor, Executor workerExecutor) {
     this.address = address;
-    bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory());
+    bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(bossExecutor, workerExecutor));
     bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
       @Override
       public ChannelPipeline getPipeline() throws Exception {
@@ -67,10 +69,6 @@ public class NettyClient extends SimpleChannelHandler implements ChannelFutureLi
     } catch(Exception e) {
       throw new RemoteRunException("Failed to create client SSLEngine", e);
     }
-  }
-
-  public static void main(String[] args) {
-    new NettyClient(new InetSocketAddress("127.0.0.1", DEFAULT_PORT)).connect();
   }
 
   public ChannelFuture connect() {
@@ -106,9 +104,10 @@ public class NettyClient extends SimpleChannelHandler implements ChannelFutureLi
     ctx.sendUpstream(e);
   }
 
+  @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
   @Override
   public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception {
-    if (e.getCause() != null
+    if(e.getCause() != null
       && ConnectException.class.equals(e.getCause().getClass())
       && e.getCause().getMessage() != null
       && e.getCause().getMessage().startsWith("Connection refused: ")) {
@@ -133,13 +132,20 @@ public class NettyClient extends SimpleChannelHandler implements ChannelFutureLi
     }
     channel = null;
     ctx.sendUpstream(e);
-    timer = new Timer();
-    timer.schedule(new TimerTask() {
-      @Override
-      public void run() {
-        connect();
-        timer.cancel();
-      }
-    }, 10000);
+    if(!shutdown) {
+      timer = new Timer();
+      timer.schedule(new TimerTask() {
+        @Override
+        public void run() {
+          connect();
+          timer.cancel();
+        }
+      }, RECONNECT_DELAY);
+    }
+  }
+
+  public void shutdown() {
+    shutdown = true;
+    bootstrap.shutdown();
   }
 }

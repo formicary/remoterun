@@ -1,6 +1,10 @@
 package com.twock.remoterun.server;
 
 import java.net.InetSocketAddress;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.Executor;
 import javax.net.ssl.*;
 
 import com.twock.remoterun.common.KeyStoreUtil;
@@ -22,13 +26,13 @@ import org.slf4j.LoggerFactory;
  */
 public class NettyServer extends SimpleChannelHandler implements ChannelFutureListener {
   private static final Logger log = LoggerFactory.getLogger(NettyServer.class);
-  private static final int DEFAULT_PORT = 1081;
-  private final InetSocketAddress address;
+  private final Set<ClientConnection> clientConnections = Collections.synchronizedSet(new HashSet<ClientConnection>());
   private final ServerBootstrap bootstrap;
+  private ServerConnectionCallback callback;
 
-  public NettyServer(InetSocketAddress address) {
-    this.address = address;
-    NioServerSocketChannelFactory factory = new NioServerSocketChannelFactory();
+  public NettyServer(Executor bossExecutor, Executor workerExecutor, ServerConnectionCallback callback) {
+    this.callback = callback;
+    NioServerSocketChannelFactory factory = new NioServerSocketChannelFactory(bossExecutor, workerExecutor);
     bootstrap = new ServerBootstrap(factory);
     bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
       @Override
@@ -66,11 +70,7 @@ public class NettyServer extends SimpleChannelHandler implements ChannelFutureLi
     }
   }
 
-  public static void main(String[] args) {
-    new NettyServer(new InetSocketAddress(DEFAULT_PORT)).bind();
-  }
-
-  public void bind() {
+  public void bind(InetSocketAddress address) {
     bootstrap.bind(address);
     log.info("Listening for connections on " + address.toString());
   }
@@ -90,15 +90,19 @@ public class NettyServer extends SimpleChannelHandler implements ChannelFutureLi
 
   @Override
   public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+    ClientConnection connection = new ClientConnection(ctx.getChannel());
+    ctx.getChannel().setAttachment(connection);
+    clientConnections.add(connection);
     final SslHandler sslHandler = ctx.getPipeline().get(SslHandler.class);
     sslHandler.handshake().addListener(this);
-    log.info("Client connected from " + ctx.getChannel().getRemoteAddress().toString());
+    log.info("Client connected from " + ctx.getChannel().getRemoteAddress().toString() + " (" + clientConnections.size() + " open connections)");
     ctx.sendUpstream(e);
   }
 
   @Override
   public void operationComplete(ChannelFuture future) throws Exception {
     if(future.isSuccess()) {
+      ((ClientConnection)future.getChannel().getAttachment()).setConnectionState(ClientConnection.ConnectionState.CONNECTED);
       log.info("Client connection complete from " + future.getChannel().getRemoteAddress());
     } else {
       future.getChannel().close();
@@ -107,7 +111,29 @@ public class NettyServer extends SimpleChannelHandler implements ChannelFutureLi
 
   @Override
   public void channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+    ClientConnection connection = (ClientConnection)ctx.getChannel().getAttachment();
+    connection.setConnectionState(ClientConnection.ConnectionState.CLOSED);
+    clientConnections.remove(connection);
     ctx.sendUpstream(e);
-    log.info("Client disconnected from " + ctx.getChannel().getRemoteAddress().toString());
+    log.info("Client disconnected from " + ctx.getChannel().getRemoteAddress().toString() + " (" + clientConnections.size() + " open connections)");
+  }
+
+  public Set<ClientConnection> getClientConnections() {
+    return clientConnections;
+  }
+
+  public void shutdown() {
+    synchronized(clientConnections) {
+      for(ClientConnection clientConnection : clientConnections) {
+        clientConnection.shutdown();
+      }
+    }
+    bootstrap.shutdown();
+  }
+
+  public static interface ServerConnectionCallback {
+    void clientConnected(ClientConnection clientConnection);
+
+    void clientDisconnected(ClientConnection clientConnection);
   }
 }

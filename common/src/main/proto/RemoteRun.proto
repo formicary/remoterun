@@ -11,7 +11,7 @@ message ServerToClient {
   }
 
   message RunCommand {
-    required int64 id = 1;
+    required int64 requestId = 1;
     required string cmd = 2;
     repeated string args = 3;
     repeated Environment environment = 4;
@@ -23,7 +23,7 @@ message ServerToClient {
   }
 
   message StdinFragment {
-    required int64 id = 1;
+    required int64 requestId = 1;
     optional bytes fragment = 2;
   }
 }
@@ -40,7 +40,7 @@ message ClientToServer {
   }
 
   message Fragment {
-    required int64 id = 1;
+    required int64 requestId = 1;
     optional bytes fragment = 2;
   }
 }
