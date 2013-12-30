@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import javax.net.ssl.*;
+import javax.security.cert.X509Certificate;
 
 import com.twock.remoterun.common.KeyStoreUtil;
 import com.twock.remoterun.common.RemoteRunException;
@@ -103,7 +104,9 @@ public class NettyServer extends SimpleChannelHandler implements ChannelFutureLi
   public void operationComplete(ChannelFuture future) throws Exception {
     if(future.isSuccess()) {
       ((ClientConnection)future.getChannel().getAttachment()).setConnectionState(ClientConnection.ConnectionState.CONNECTED);
-      log.info("Client connection complete from " + future.getChannel().getRemoteAddress());
+      SSLEngine engine = future.getChannel().getPipeline().get(SslHandler.class).getEngine();
+      X509Certificate peerCertificate = engine.getSession().getPeerCertificateChain()[0];
+      log.info("Client connection complete from " + future.getChannel().getRemoteAddress() + " (" + peerCertificate.getSubjectDN().toString() + ")");
     } else {
       future.getChannel().close();
     }
