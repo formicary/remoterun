@@ -12,8 +12,7 @@ public class Client {
     InetSocketAddress serverAddress = new InetSocketAddress("127.0.0.1", 1081);
     Executor bossExecutor = Executors.newCachedThreadPool();
     Executor workerExecutor = Executors.newCachedThreadPool();
-    ProcessExecutor processExecutor = new ProcessExecutor();
-    NettyClient nettyClient = new NettyClient(serverAddress, bossExecutor, workerExecutor, processExecutor);
+    NettyClient nettyClient = new NettyClient(serverAddress, bossExecutor, workerExecutor);
     nettyClient.connect();
   }
 }

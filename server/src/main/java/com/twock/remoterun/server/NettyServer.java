@@ -7,6 +7,7 @@ import javax.net.ssl.*;
 import javax.security.cert.X509Certificate;
 
 import com.twock.remoterun.common.KeyStoreUtil;
+import com.twock.remoterun.common.NettyLoggingHandler;
 import com.twock.remoterun.common.RemoteRunException;
 import com.twock.remoterun.common.proto.RemoteRun;
 import org.jboss.netty.bootstrap.ServerBootstrap;
@@ -45,6 +46,7 @@ public class NettyServer extends SimpleChannelHandler implements ChannelFutureLi
           new ProtobufDecoder(RemoteRun.ClientToServer.getDefaultInstance()),
           new ProtobufEncoder(),
 
+          new NettyLoggingHandler(),
           NettyServer.this
         );
       }
@@ -83,7 +85,7 @@ public class NettyServer extends SimpleChannelHandler implements ChannelFutureLi
 
   @Override
   public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-    log.debug("Received " + e.getMessage());
+    // todo
     ctx.sendUpstream(e);
   }
 
@@ -156,4 +158,5 @@ public class NettyServer extends SimpleChannelHandler implements ChannelFutureLi
 
     void clientDisconnected(ClientConnection clientConnection);
   }
+
 }

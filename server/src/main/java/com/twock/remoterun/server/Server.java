@@ -75,7 +75,7 @@ public class Server implements NettyServer.ServerConnectionCallback {
     String command = tokens.remove(0);
 
     ServerToClient.Builder builder = ServerToClient.newBuilder().setMessageType(ServerToClient.MessageType.RUN_COMMAND);
-    builder.getRunCommandBuilder().setId(0).setCmd(command).addAllArgs(tokens);
+    builder.getRunCommandBuilder().setRequestId(0).setCmd(command).addAllArgs(tokens);
     ServerToClient message = builder.build();
 
     Collection<ClientConnection> connectedClients = nettyServer.getConnectedClients();
@@ -84,7 +84,6 @@ public class Server implements NettyServer.ServerConnectionCallback {
     } else {
       ClientConnection connection = connectedClients.iterator().next();
       connection.getChannel().write(message);
-      log.info("Sent " + message + " to " + connection);
     }
   }
 

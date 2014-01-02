@@ -2,12 +2,16 @@ package com.twock.remoterun.client;
 
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.nio.ByteBuffer;
+import java.util.*;
 import java.util.concurrent.Executor;
 import javax.net.ssl.*;
 
+import com.google.protobuf.ByteString;
+import com.twock.remoterun.client.process.ProcessHelper;
+import com.twock.remoterun.client.process.ReadCallback;
 import com.twock.remoterun.common.KeyStoreUtil;
+import com.twock.remoterun.common.NettyLoggingHandler;
 import com.twock.remoterun.common.RemoteRunException;
 import com.twock.remoterun.common.proto.RemoteRun;
 import org.jboss.netty.bootstrap.ClientBootstrap;
@@ -21,23 +25,26 @@ import org.jboss.netty.handler.ssl.SslHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static com.twock.remoterun.common.proto.RemoteRun.ClientToServer.MessageType;
+import static com.twock.remoterun.common.proto.RemoteRun.ClientToServer.MessageType.*;
+
 /**
  * @author Chris Pearson
  */
-public class NettyClient extends SimpleChannelHandler implements ChannelFutureListener {
+public class NettyClient extends SimpleChannelHandler implements ChannelFutureListener, ReadCallback {
   private static final Logger log = LoggerFactory.getLogger(NettyClient.class);
   private static final int RECONNECT_DELAY = 10000;
   private final InetSocketAddress address;
-  private final ProcessExecutor processExecutor;
+  private final Map<Long, ProcessHelper> processes = Collections.synchronizedMap(new TreeMap<Long, ProcessHelper>());
   private final ClientBootstrap bootstrap;
   private boolean shutdown = false;
   private Channel channel;
   private ChannelFuture handshakeFuture;
   private Timer timer;
+  private ChannelFuture lastWriteFuture;
 
-  public NettyClient(InetSocketAddress address, Executor bossExecutor, Executor workerExecutor, ProcessExecutor processExecutor) {
+  public NettyClient(InetSocketAddress address, Executor bossExecutor, Executor workerExecutor) {
     this.address = address;
-    this.processExecutor = processExecutor;
     bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(bossExecutor, workerExecutor));
     bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
       @Override
@@ -51,6 +58,7 @@ public class NettyClient extends SimpleChannelHandler implements ChannelFutureLi
           new ProtobufDecoder(RemoteRun.ServerToClient.getDefaultInstance()),
           new ProtobufEncoder(),
 
+          new NettyLoggingHandler(),
           NettyClient.this
         );
       }
@@ -123,14 +131,32 @@ public class NettyClient extends SimpleChannelHandler implements ChannelFutureLi
 
   @Override
   public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-    log.debug("Received " + e.getMessage());
     RemoteRun.ServerToClient message = (RemoteRun.ServerToClient)e.getMessage();
-    switch (message.getMessageType()) {
+    switch(message.getMessageType()) {
       case RUN_COMMAND:
         RemoteRun.ServerToClient.RunCommand runCommand = message.getRunCommand();
-//        int clientId = processExecutor.run(runCommand.getId(), runCommand.getCmd(), runCommand.getArgsList());
+        long requestId = runCommand.getRequestId();
+        try {
+          // start the process
+          ProcessHelper processHelper = new ProcessHelper(requestId, runCommand.getCmd(), runCommand.getArgsList(), this);
+          processes.put(requestId, processHelper);
+          // write a success reply
+          write(RemoteRun.ClientToServer.newBuilder().setMessageType(STARTED).setRequestId(requestId).build());
+          processHelper.startReadingOutput();
+        } catch(Exception e1) {
+          log.info("Failed to start process " + runCommand, e1);
+          // write a failure reply
+          write(RemoteRun.ClientToServer.newBuilder().setMessageType(EXITED)
+            .setRequestId(requestId).setExitCode(-1)
+            .setExitReason(e1.getClass().getName() + ": " + e1.getMessage())
+            .build());
+        }
     }
     ctx.sendUpstream(e);
+  }
+
+  private void write(RemoteRun.ClientToServer message) {
+    lastWriteFuture = channel.write(message);
   }
 
   @Override
@@ -155,5 +181,30 @@ public class NettyClient extends SimpleChannelHandler implements ChannelFutureLi
   public void shutdown() {
     shutdown = true;
     bootstrap.shutdown();
+  }
+
+  @Override
+  public void dataAvailable(ByteBuffer buffer, long serverId, MessageType type) {
+    waitUntilWritable();
+    write(RemoteRun.ClientToServer.newBuilder().setMessageType(type).setRequestId(serverId).setFragment(ByteString.copyFrom(buffer)).build());
+  }
+
+  private void waitUntilWritable() {
+    if(!channel.isWritable()) {
+      try {
+        lastWriteFuture.await();
+      } catch(InterruptedException e) {
+      }
+    }
+  }
+
+  @Override
+  public void finished(long serverId, MessageType type) {
+    ProcessHelper processHelper = processes.get(serverId);
+    if(processHelper != null && processHelper.isFinished()) {
+      waitUntilWritable();
+      write(RemoteRun.ClientToServer.newBuilder().setMessageType(EXITED).setExitCode(processHelper.getProcess().exitValue()).build());
+      processes.remove(serverId);
+    }
   }
 }
