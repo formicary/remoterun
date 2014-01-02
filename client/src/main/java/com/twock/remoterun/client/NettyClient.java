@@ -186,7 +186,9 @@ public class NettyClient extends SimpleChannelHandler implements ChannelFutureLi
   @Override
   public void dataAvailable(ByteBuffer buffer, long serverId, MessageType type) {
     waitUntilWritable();
-    write(RemoteRun.ClientToServer.newBuilder().setMessageType(type).setRequestId(serverId).setFragment(ByteString.copyFrom(buffer)).build());
+    write(RemoteRun.ClientToServer.newBuilder().setMessageType(type)
+      .setRequestId(serverId)
+      .setFragment(ByteString.copyFrom(buffer)).build());
   }
 
   private void waitUntilWritable() {
@@ -203,8 +205,12 @@ public class NettyClient extends SimpleChannelHandler implements ChannelFutureLi
     ProcessHelper processHelper = processes.get(serverId);
     if(processHelper != null && processHelper.isFinished()) {
       waitUntilWritable();
-      write(RemoteRun.ClientToServer.newBuilder().setMessageType(EXITED).setExitCode(processHelper.getProcess().exitValue()).build());
-      processes.remove(serverId);
+      ProcessHelper process = processes.remove(serverId);
+      if(process != null) {
+        write(RemoteRun.ClientToServer.newBuilder().setMessageType(EXITED)
+          .setRequestId(serverId)
+          .setExitCode(processHelper.getProcess().exitValue()).build());
+      }
     }
   }
 }
