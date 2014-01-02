@@ -1,9 +1,7 @@
 package com.twock.remoterun.server;
 
 import java.net.InetSocketAddress;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Executor;
 import javax.net.ssl.*;
 import javax.security.cert.X509Certificate;
@@ -132,6 +130,25 @@ public class NettyServer extends SimpleChannelHandler implements ChannelFutureLi
       }
     }
     bootstrap.shutdown();
+  }
+
+  public Collection<ClientConnection> getConnectedClients() {
+    List<ClientConnection> result = new ArrayList<>();
+    for(ClientConnection clientConnection : clientConnections) {
+      if(clientConnection.getConnectionState() == ClientConnection.ConnectionState.CONNECTED) {
+        result.add(clientConnection);
+      }
+    }
+    return result;
+  }
+
+  @Override
+  public String toString() {
+    return "NettyServer{" +
+      "clientConnections=" + clientConnections +
+      ", bootstrap=" + bootstrap +
+      ", callback=" + callback +
+      '}';
   }
 
   public static interface ServerConnectionCallback {

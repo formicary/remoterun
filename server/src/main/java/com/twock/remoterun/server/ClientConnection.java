@@ -34,6 +34,14 @@ public class ClientConnection {
     channel.close();
   }
 
+  @Override
+  public String toString() {
+    return "ClientConnection{" +
+      "channel=" + channel +
+      ", connectionState=" + connectionState +
+      '}';
+  }
+
   public static enum ConnectionState {
     CLOSED,
     HANDSHAKING,

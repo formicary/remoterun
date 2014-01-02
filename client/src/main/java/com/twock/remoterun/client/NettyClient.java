@@ -28,14 +28,16 @@ public class NettyClient extends SimpleChannelHandler implements ChannelFutureLi
   private static final Logger log = LoggerFactory.getLogger(NettyClient.class);
   private static final int RECONNECT_DELAY = 10000;
   private final InetSocketAddress address;
+  private final ProcessExecutor processExecutor;
   private final ClientBootstrap bootstrap;
   private boolean shutdown = false;
   private Channel channel;
   private ChannelFuture handshakeFuture;
   private Timer timer;
 
-  public NettyClient(InetSocketAddress address, Executor bossExecutor, Executor workerExecutor) {
+  public NettyClient(InetSocketAddress address, Executor bossExecutor, Executor workerExecutor, ProcessExecutor processExecutor) {
     this.address = address;
+    this.processExecutor = processExecutor;
     bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(bossExecutor, workerExecutor));
     bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
       @Override
@@ -122,6 +124,12 @@ public class NettyClient extends SimpleChannelHandler implements ChannelFutureLi
   @Override
   public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
     log.debug("Received " + e.getMessage());
+    RemoteRun.ServerToClient message = (RemoteRun.ServerToClient)e.getMessage();
+    switch (message.getMessageType()) {
+      case RUN_COMMAND:
+        RemoteRun.ServerToClient.RunCommand runCommand = message.getRunCommand();
+//        int clientId = processExecutor.run(runCommand.getId(), runCommand.getCmd(), runCommand.getArgsList());
+    }
     ctx.sendUpstream(e);
   }
 
