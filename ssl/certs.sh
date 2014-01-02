@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-RSA_BITS=1024
+RSA_BITS=3072
 PFX_PASS=123456
 
 cd `dirname $0`
