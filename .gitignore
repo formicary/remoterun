@@ -1,0 +1,17 @@
+# IDEA project files
+*.iml
+.idea/
+
+# Generated SSL certificates
+ssl/ca-store/
+ssl/*.pem
+ssl/*.cnf
+ssl/*.jks
+ssl/*.pfx
+
+# Maven ignores: https://github.com/github/gitignore/blob/master/Maven.gitignore
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.next
+release.properties
