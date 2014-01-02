@@ -1,8 +1,11 @@
 package com.twock.remoterun.client.process;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.twock.remoterun.common.proto.RemoteRun;
 
 import static com.twock.remoterun.common.proto.RemoteRun.ClientToServer.MessageType.*;
 
@@ -14,11 +17,13 @@ public class ProcessHelper {
   private final Process process;
   private final OutputReader stdout;
   private final OutputReader stderr;
-  private Thread stdoutThread;
-  private Thread stderrThread;
+  private final InputWriter stdin;
+  private final ReadCallback callback;
+  private boolean finished = false;
 
   public ProcessHelper(long serverId, String cmd, List<String> argsList, ReadCallback callback) throws IOException {
     this.serverId = serverId;
+    this.callback = callback;
 
     List<String> command = new ArrayList<>(argsList.size());
     command.add(cmd);
@@ -26,20 +31,30 @@ public class ProcessHelper {
     String[] cmdArray = command.toArray(new String[command.size()]);
 
     process = Runtime.getRuntime().exec(cmdArray);
-    stdout = new OutputReader(process.getInputStream(), serverId, STDOUT_FRAGMENT, callback);
-    stderr = new OutputReader(process.getErrorStream(), serverId, STDERR_FRAGMENT, callback);
+    ReadCallback wrapper = new ReadCallback() {
+      @Override
+      public void dataAvailable(ByteBuffer buffer, long serverId, RemoteRun.ClientToServer.MessageType type) {
+        ProcessHelper.this.callback.dataAvailable(buffer, serverId, type);
+      }
+
+      @Override
+      public synchronized void finished(long serverId) {
+        if(!finished && stdout.isFinished() && stderr.isFinished()) {
+          finished = true;
+          stdin.shutdown();
+          ProcessHelper.this.callback.finished(serverId);
+        }
+      }
+    };
+    stdout = new OutputReader(process.getInputStream(), serverId, STDOUT_FRAGMENT, wrapper);
+    stderr = new OutputReader(process.getErrorStream(), serverId, STDERR_FRAGMENT, wrapper);
+    stdin = new InputWriter(process.getOutputStream(), serverId);
   }
 
-  public void startReadingOutput() {
-    stdoutThread = startReaderThread(stdout);
-    stderrThread = startReaderThread(stderr);
-  }
-
-  private Thread startReaderThread(OutputReader t) {
-    Thread thread = new Thread(t);
-    thread.setName("Process " + t.getServerId() + " " + t.getType().name().substring(0, 6) + " reader");
-    thread.start();
-    return thread;
+  public void start() {
+    stdout.start();
+    stderr.start();
+    stdin.start();
   }
 
   public long getServerId() {
@@ -51,6 +66,14 @@ public class ProcessHelper {
   }
 
   public boolean isFinished() {
-    return stdout.isFinished() && stderr.isFinished();
+    return finished;
+  }
+
+  public void writeStdIn(byte[] data) {
+    stdin.write(data);
+  }
+
+  public void closeStdIn() {
+    stdin.shutdown();
   }
 }

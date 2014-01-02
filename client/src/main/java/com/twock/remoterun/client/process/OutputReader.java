@@ -12,7 +12,7 @@ import static com.twock.remoterun.common.proto.RemoteRun.ClientToServer.MessageT
 /**
  * @author Chris Pearson
  */
-public class OutputReader implements Runnable {
+public class OutputReader extends Thread {
   private static final Logger log = LoggerFactory.getLogger(OutputReader.class);
   private static final int BUFFER_SIZE = 1048576;
   private final ByteBuffer buffer = ByteBuffer.wrap(new byte[BUFFER_SIZE]);
@@ -28,6 +28,7 @@ public class OutputReader implements Runnable {
     this.serverId = serverId;
     this.type = type;
     this.callback = callback;
+    setName("Process " + serverId + " " + type.name().substring(0, 6) + " reader");
   }
 
   public long getServerId() {
@@ -69,7 +70,7 @@ public class OutputReader implements Runnable {
       log.warn("Failed whilst reading stream", e);
     } finally {
       IOUtils.closeQuietly(stream);
-      callback.finished(serverId, type);
+      callback.finished(serverId);
     }
   }
 }

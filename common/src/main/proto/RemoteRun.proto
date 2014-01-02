@@ -2,29 +2,25 @@ option java_package = "com.twock.remoterun.common.proto";
 
 message ServerToClient {
   required MessageType messageType = 1;
-  optional RunCommand runCommand = 2;
-  optional bytes stdinFragment = 3;
+  optional int64 requestId = 2;
+  optional RunCommand runCommand = 3;
+  optional bytes stdinFragment = 4;
 
   enum MessageType {
-    RUN_COMMAND = 1; // runCommand populated
-    STDIN_FRAGMENT = 2; // stdinFragment populated
+    RUN_COMMAND = 1; // requestId and runCommand populated
+    STDIN_FRAGMENT = 2; // requestId and stdinFragment populated
+    CLOSE_STDIN = 3; // requestId populated
   }
 
   message RunCommand {
-    required int64 requestId = 1;
-    required string cmd = 2;
-    repeated string args = 3;
-    repeated Environment environment = 4;
+    required string cmd = 1;
+    repeated string args = 2;
+    repeated Environment environment = 3;
 
     message Environment {
       required string key = 1;
       required string value = 2;
     }
-  }
-
-  message StdinFragment {
-    required int64 requestId = 1;
-    optional bytes fragment = 2;
   }
 }
 

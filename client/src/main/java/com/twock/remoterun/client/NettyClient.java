@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import static com.twock.remoterun.common.proto.RemoteRun.ClientToServer.MessageType;
 import static com.twock.remoterun.common.proto.RemoteRun.ClientToServer.MessageType.*;
+import static com.twock.remoterun.common.proto.RemoteRun.ServerToClient.MessageType.*;
 
 /**
  * @author Chris Pearson
@@ -132,25 +133,40 @@ public class NettyClient extends SimpleChannelHandler implements ChannelFutureLi
   @Override
   public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
     RemoteRun.ServerToClient message = (RemoteRun.ServerToClient)e.getMessage();
-    switch(message.getMessageType()) {
-      case RUN_COMMAND:
-        RemoteRun.ServerToClient.RunCommand runCommand = message.getRunCommand();
-        long requestId = runCommand.getRequestId();
-        try {
-          // start the process
-          ProcessHelper processHelper = new ProcessHelper(requestId, runCommand.getCmd(), runCommand.getArgsList(), this);
-          processes.put(requestId, processHelper);
-          // write a success reply
-          write(RemoteRun.ClientToServer.newBuilder().setMessageType(STARTED).setRequestId(requestId).build());
-          processHelper.startReadingOutput();
-        } catch(Exception e1) {
-          log.info("Failed to start process " + runCommand, e1);
-          // write a failure reply
-          write(RemoteRun.ClientToServer.newBuilder().setMessageType(EXITED)
-            .setRequestId(requestId).setExitCode(-1)
-            .setExitReason(e1.getClass().getName() + ": " + e1.getMessage())
-            .build());
-        }
+    long requestId = message.getRequestId();
+    if(RUN_COMMAND == message.getMessageType()) {
+      RemoteRun.ServerToClient.RunCommand runCommand = message.getRunCommand();
+      try {
+        // start the process
+        ProcessHelper processHelper = new ProcessHelper(requestId, runCommand.getCmd(), runCommand.getArgsList(), this);
+        processes.put(requestId, processHelper);
+        // write a success reply
+        write(RemoteRun.ClientToServer.newBuilder().setMessageType(STARTED).setRequestId(requestId).build());
+        processHelper.start();
+      } catch(Exception e1) {
+        log.info("Failed to start process " + runCommand, e1);
+        // write a failure reply
+        write(RemoteRun.ClientToServer.newBuilder().setMessageType(EXITED)
+          .setRequestId(requestId).setExitCode(-1)
+          .setExitReason(e1.getClass().getName() + ": " + e1.getMessage())
+          .build());
+      }
+
+    } else if (STDIN_FRAGMENT == message.getMessageType()) {
+      ProcessHelper processHelper = processes.get(requestId);
+      if (processHelper == null) {
+        log.warn("Ignoring STDIN fragment for invalid request ID " + requestId);
+      } else {
+        processHelper.writeStdIn(message.getStdinFragment().toByteArray());
+      }
+
+    } else if (CLOSE_STDIN == message.getMessageType()) {
+      ProcessHelper processHelper = processes.get(requestId);
+      if (processHelper == null) {
+        log.warn("Ignoring CLOSE_STDIN request for invalid request ID " + requestId);
+      } else {
+        processHelper.closeStdIn();
+      }
     }
     ctx.sendUpstream(e);
   }
@@ -201,7 +217,7 @@ public class NettyClient extends SimpleChannelHandler implements ChannelFutureLi
   }
 
   @Override
-  public void finished(long serverId, MessageType type) {
+  public void finished(long serverId) {
     ProcessHelper processHelper = processes.get(serverId);
     if(processHelper != null && processHelper.isFinished()) {
       waitUntilWritable();

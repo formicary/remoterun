@@ -9,7 +9,9 @@ import java.util.concurrent.Executors;
  */
 public class Client {
   public static void main(String[] args) {
-    InetSocketAddress serverAddress = new InetSocketAddress("127.0.0.1", 1081);
+    String hostname = args.length >= 1 ? args[0] : "127.0.0.1";
+    int port = args.length >= 2 ? Integer.parseInt(args[0]) : 1081;
+    InetSocketAddress serverAddress = new InetSocketAddress(hostname, port);
     Executor bossExecutor = Executors.newCachedThreadPool();
     Executor workerExecutor = Executors.newCachedThreadPool();
     NettyClient nettyClient = new NettyClient(serverAddress, bossExecutor, workerExecutor);
