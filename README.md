@@ -55,3 +55,14 @@ application.  There is a bundled example service in com.twock.remoterun.server.S
     c 1
     21:56:46.610 [main] DEBUG c.t.r.common.NettyLoggingHandler - [id: 0x01977fc5, /127.0.0.1:50495 => /127.0.0.1:1081] WRITE: messageType: CLOSE_STDIN requestId: 1
     21:56:46.614 [New I/O worker #1] DEBUG c.t.r.common.NettyLoggingHandler - [id: 0x01977fc5, /127.0.0.1:50495 => /127.0.0.1:1081] RECEIVED: messageType: EXITED requestId: 1 exitCode: 0
+
+System Properties
+-----------------
+ + javax.net.ssl.keyStore - path to keystore (i.e. keytool file containing server/client certificate and key), defaults
+   to "ssl/client-keystore.jks" or "ssl/server-keystore.jks" for client and server respectively
+ + javax.net.ssl.keyStoreType - JKS (Java Key Store) or PKCS12, defaults to JKS
+ + javax.net.ssl.keyStorePassword - keystore and key passwords, defaults to "123456"
+ + javax.net.ssl.trustStore - path to truststore (i.e. keytool file containing the certification authority public cert),
+   defaults to "ssl/ca-truststore.jks"
+ + javax.net.ssl.trustStoreType - JKS (Java Key Store) or PKCS12, defaults to JKS
+ + javax.net.ssl.trustStorePassword - keystore password, defaults to "123456"
