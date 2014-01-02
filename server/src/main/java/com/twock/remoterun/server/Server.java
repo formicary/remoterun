@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.twock.remoterun.common.RemoteRunException;
 import org.apache.commons.io.Charsets;
@@ -22,6 +23,7 @@ import static com.twock.remoterun.common.proto.RemoteRun.ServerToClient;
  */
 public class Server implements NettyServer.ServerConnectionCallback {
   private static final Logger log = LoggerFactory.getLogger(Server.class);
+  private static final AtomicLong NEXT_REQUEST_ID = new AtomicLong();
   private NettyServer nettyServer;
 
   public static void main(String[] args) {
@@ -75,7 +77,7 @@ public class Server implements NettyServer.ServerConnectionCallback {
     String command = tokens.remove(0);
 
     ServerToClient.Builder builder = ServerToClient.newBuilder().setMessageType(ServerToClient.MessageType.RUN_COMMAND);
-    builder.getRunCommandBuilder().setRequestId(0).setCmd(command).addAllArgs(tokens);
+    builder.getRunCommandBuilder().setRequestId(NEXT_REQUEST_ID.incrementAndGet()).setCmd(command).addAllArgs(tokens);
     ServerToClient message = builder.build();
 
     Collection<ClientConnection> connectedClients = nettyServer.getConnectedClients();
