@@ -80,3 +80,23 @@ application.  There is a bundled example service in com.twock.remoterun.examples
 
 ## Using RemoteRun in your own application
 
+Using maven you need this in your pom.xml:
+
+    <dependencies>
+      <dependency>
+        <groupId>com.twock.remoterun</groupId>
+        <artifactId>remoterun-embed</artifactId>
+        <version>1.0</version>
+      </dependency>
+    </dependencies>
+
+    <repositories>
+      <repository>
+        <id>remoterun-mvn-repo</id>
+        <url>https://raw.github.com/echinus/remoterun/mvn-repo/</url>
+        <snapshots>
+          <enabled>true</enabled>
+          <updatePolicy>always</updatePolicy>
+        </snapshots>
+      </repository>
+    </repositories>
