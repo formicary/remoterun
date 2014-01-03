@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.twock.remoterun</groupId>
-  <artifactId>remoterun-parent</artifactId>
+  <artifactId>remoterun</artifactId>
   <version>1.0-SNAPSHOT</version>
   <modules>
     <module>common</module>
