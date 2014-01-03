@@ -1,6 +1,6 @@
 option java_package = "com.twock.remoterun.common.proto";
 
-message ServerToClient {
+message MasterToAgent {
   required MessageType messageType = 1;
   optional int64 requestId = 2;
   optional RunCommand runCommand = 3;
@@ -24,7 +24,7 @@ message ServerToClient {
   }
 }
 
-message ClientToServer {
+message AgentToMaster {
   required MessageType messageType = 1;
   optional int64 requestId = 2;
   optional bytes fragment = 3;

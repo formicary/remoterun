@@ -73,8 +73,8 @@ openssl ca -key "${CA_PASS}" -days 365 -in server-certrequest.pem -out server-ce
 openssl pkcs12 -export -out server-pkcs12.pfx -in server-cert.pem -inkey server-key.pem -name server -CAfile ca-cert.pem -chain -passout "pass:${PFX_PASS}"
 keytool -importkeystore -srckeystore server-pkcs12.pfx -srcstoretype pkcs12 -srcstorepass 123456 -destkeystore server-keystore.jks -deststoretype jks -deststorepass 123456
 
-# Generate client certificates
-NAME=client1
+# Generate agent certificates
+for NAME in agent1 agent2 ; do
 cat > ${NAME}-config.cnf << EOF
 [ req ]
 default_bits   = ${RSA_BITS}
@@ -96,8 +96,4 @@ openssl req -newkey rsa:${RSA_BITS} -keyout ${NAME}-key.pem -out ${NAME}-certreq
 openssl ca -key "${CA_PASS}" -days 365 -in ${NAME}-certrequest.pem -out ${NAME}-cert.pem -config ca-config.cnf -batch
 openssl pkcs12 -export -out ${NAME}-pkcs12.pfx -in ${NAME}-cert.pem -inkey ${NAME}-key.pem -name ${NAME} -CAfile ca-cert.pem -chain -passout "pass:${PFX_PASS}"
 keytool -importkeystore -srckeystore ${NAME}-pkcs12.pfx -srcstoretype pkcs12 -srcstorepass 123456 -destkeystore ${NAME}-keystore.jks -deststoretype jks -deststorepass 123456
-
-# generate self signed client2 cert
-#openssl req -x509 -newkey rsa:${RSA_BITS} -keyout client2-key.pem -out client2-cert.pem -days 3650 -config client1-config.cnf -nodes
-#openssl pkcs12 -export -out client2-pkcs12.pfx -in client2-cert.pem -inkey client2-key.pem -name client2 -passout "pass:${PFX_PASS}"
-#keytool -importkeystore -srckeystore client2-pkcs12.pfx -srcstoretype pkcs12 -srcstorepass 123456 -destkeystore client2-keystore.jks -deststoretype jks -deststorepass 123456
+done
