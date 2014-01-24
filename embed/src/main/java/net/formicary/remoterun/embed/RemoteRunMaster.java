@@ -103,7 +103,7 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
 
   @Override
   public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-    // todo
+    callback.messageReceived((AgentConnection)ctx.getChannel().getAttachment(), (RemoteRun.AgentToMaster)e.getMessage());
     ctx.sendUpstream(e);
   }
 

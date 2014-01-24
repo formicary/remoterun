@@ -28,10 +28,10 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.protobuf.ByteString;
 import net.formicary.remoterun.common.RemoteRunException;
+import net.formicary.remoterun.common.proto.RemoteRun;
 import net.formicary.remoterun.embed.AgentConnection;
 import net.formicary.remoterun.embed.AgentConnectionCallback;
 import net.formicary.remoterun.embed.RemoteRunMaster;
-import net.formicary.remoterun.common.proto.RemoteRun;
 import org.apache.commons.io.Charsets;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.text.StrTokenizer;
@@ -181,6 +181,11 @@ public class Server implements AgentConnectionCallback {
 
   @Override
   public void agentConnected(AgentConnection agentConnection) {
+
+  }
+
+  @Override
+  public void messageReceived(AgentConnection agentConnection, RemoteRun.AgentToMaster message) {
 
   }
 

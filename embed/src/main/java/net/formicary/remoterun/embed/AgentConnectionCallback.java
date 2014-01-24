@@ -16,11 +16,15 @@
 
 package net.formicary.remoterun.embed;
 
+import net.formicary.remoterun.common.proto.RemoteRun;
+
 /**
  * @author Chris Pearson
  */
 public interface AgentConnectionCallback {
   void agentConnected(AgentConnection agentConnection);
+
+  void messageReceived(AgentConnection agentConnection, RemoteRun.AgentToMaster message);
 
   void agentDisconnected(AgentConnection agentConnection);
 }
