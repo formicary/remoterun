@@ -1,5 +1,5 @@
 # RemoteRun
-By Chris Pearson <chris at twock.com>
+By Chris Pearson <christopher.pearson at formicary.net>
 
 ## Introduction
 
@@ -17,8 +17,8 @@ RemoteRun may be desirable when one or more of the following apply:
 
 The idea is that you:
 
-+ embed an instance of com.twock.remoterun.embed.RemoteRunMaster in your application which listens for agent connections
-+ on servers you want to run applications you start a com.twock.remoterun.agent.RemoteRunAgent instance
++ embed an instance of net.formicary.remoterun.embed.RemoteRunMaster in your application which listens for agent connections
++ on servers you want to run applications you start a net.formicary.remoterun.agent.RemoteRunAgent instance
 
 remoterun requires SSL client authentication: I wanted a way of running services without usernames/passwords but with
 some form of authentication.  So the keystores are password protected, and this must be specified as a system property.
@@ -28,11 +28,11 @@ do).
 ## Running the example
 
 The recommended way to get started with remoterun is to run the example then have a look at NettyServer for use in your
-application.  There is a bundled example service in com.twock.remoterun.examples.Server.  To run it:
+application.  There is a bundled example service in net.formicary.remoterun.examples.Server.  To run it:
 
 + Generate SSL certificates by running ssl/certs.sh
-+ run com.twock.remoterun.examples.Server
-+ run com.twock.remoterun.agent.RemoteRunAgent
++ run net.formicary.remoterun.examples.Server
++ run net.formicary.remoterun.agent.RemoteRunAgent
 + issue commands on the Server console as follows:
     + l - list connections
     + r <cmd> [arg [arg [...]]] - run a remote command
@@ -40,31 +40,31 @@ application.  There is a bundled example service in com.twock.remoterun.examples
     + c <requestId> - close stdin of process
 
 ### Example output from immediate exit
-    08:13:49.009 [main] INFO  c.t.remoterun.embed.RemoteRunMaster - Listening for connections on 0.0.0.0/0.0.0.0:1081
-    08:13:58.063 [New I/O worker #1] INFO  c.t.remoterun.embed.RemoteRunMaster - Agent connected from /127.0.0.1:51540 (1 open connections)
-    08:13:58.461 [New I/O worker #1] INFO  c.t.remoterun.embed.RemoteRunMaster - Agent connection complete from /127.0.0.1:51540 (CN=agent1, O=Twock, L=Potters Bar, ST=Hertfordshire, C=GB)
+    08:13:49.009 [main] INFO  n.f.remoterun.embed.RemoteRunMaster - Listening for connections on 0.0.0.0/0.0.0.0:1081
+    08:13:58.063 [New I/O worker #1] INFO  n.f.remoterun.embed.RemoteRunMaster - Agent connected from /127.0.0.1:51540 (1 open connections)
+    08:13:58.461 [New I/O worker #1] INFO  n.f.remoterun.embed.RemoteRunMaster - Agent connection complete from /127.0.0.1:51540 (CN=agent1, O=Formicary Ltd, L=London, ST=Greater London, C=GB)
     l
-    08:14:08.860 [main] INFO  com.twock.remoterun.examples.Server - 1: CONNECTED /127.0.0.1:51540
-    08:14:08.860 [main] INFO  com.twock.remoterun.examples.Server - Finished listing 1 agent connections
+    08:14:08.860 [main] INFO  net.formicary.remoterun.examples.Server - 1: CONNECTED /127.0.0.1:51540
+    08:14:08.860 [main] INFO  net.formicary.remoterun.examples.Server - Finished listing 1 agent connections
     r echo hello
-    08:14:14.149 [main] DEBUG c.t.r.common.NettyLoggingHandler - [id: 0xe45373eb, /127.0.0.1:51540 => /127.0.0.1:1081] WRITE: messageType: RUN_COMMAND requestId: 1 runCommand {   cmd: "echo"   args: "hello" }
-    08:14:14.300 [New I/O worker #1] DEBUG c.t.r.common.NettyLoggingHandler - [id: 0xe45373eb, /127.0.0.1:51540 => /127.0.0.1:1081] RECEIVED: messageType: STARTED requestId: 1
-    08:14:14.301 [New I/O worker #1] DEBUG c.t.r.common.NettyLoggingHandler - [id: 0xe45373eb, /127.0.0.1:51540 => /127.0.0.1:1081] RECEIVED: messageType: STDOUT_FRAGMENT requestId: 1 fragment: "hello\n"
-    08:14:14.302 [New I/O worker #1] DEBUG c.t.r.common.NettyLoggingHandler - [id: 0xe45373eb, /127.0.0.1:51540 => /127.0.0.1:1081] RECEIVED: messageType: EXITED requestId: 1 exitCode: 0
+    08:14:14.149 [main] DEBUG n.f.r.common.NettyLoggingHandler - [id: 0xe45373eb, /127.0.0.1:51540 => /127.0.0.1:1081] WRITE: messageType: RUN_COMMAND requestId: 1 runCommand {   cmd: "echo"   args: "hello" }
+    08:14:14.300 [New I/O worker #1] DEBUG n.f.r.common.NettyLoggingHandler - [id: 0xe45373eb, /127.0.0.1:51540 => /127.0.0.1:1081] RECEIVED: messageType: STARTED requestId: 1
+    08:14:14.301 [New I/O worker #1] DEBUG n.f.r.common.NettyLoggingHandler - [id: 0xe45373eb, /127.0.0.1:51540 => /127.0.0.1:1081] RECEIVED: messageType: STDOUT_FRAGMENT requestId: 1 fragment: "hello\n"
+    08:14:14.302 [New I/O worker #1] DEBUG n.f.r.common.NettyLoggingHandler - [id: 0xe45373eb, /127.0.0.1:51540 => /127.0.0.1:1081] RECEIVED: messageType: EXITED requestId: 1 exitCode: 0
 
 ### Example output from longer running process
     l
-    08:15:39.448 [main] INFO  com.twock.remoterun.examples.Server - 1: CONNECTED /127.0.0.1:51540
-    08:15:39.448 [main] INFO  com.twock.remoterun.examples.Server - Finished listing 1 agent connections
+    08:15:39.448 [main] INFO  net.formicary.remoterun.examples.Server - 1: CONNECTED /127.0.0.1:51540
+    08:15:39.448 [main] INFO  net.formicary.remoterun.examples.Server - Finished listing 1 agent connections
     r cat
-    08:15:41.266 [main] DEBUG c.t.r.common.NettyLoggingHandler - [id: 0xe45373eb, /127.0.0.1:51540 => /127.0.0.1:1081] WRITE: messageType: RUN_COMMAND requestId: 2 runCommand {   cmd: "cat" }
-    08:15:41.280 [New I/O worker #1] DEBUG c.t.r.common.NettyLoggingHandler - [id: 0xe45373eb, /127.0.0.1:51540 => /127.0.0.1:1081] RECEIVED: messageType: STARTED requestId: 2
+    08:15:41.266 [main] DEBUG n.f.r.common.NettyLoggingHandler - [id: 0xe45373eb, /127.0.0.1:51540 => /127.0.0.1:1081] WRITE: messageType: RUN_COMMAND requestId: 2 runCommand {   cmd: "cat" }
+    08:15:41.280 [New I/O worker #1] DEBUG n.f.r.common.NettyLoggingHandler - [id: 0xe45373eb, /127.0.0.1:51540 => /127.0.0.1:1081] RECEIVED: messageType: STARTED requestId: 2
     i 2 hello\n
-    08:15:49.565 [main] DEBUG c.t.r.common.NettyLoggingHandler - [id: 0xe45373eb, /127.0.0.1:51540 => /127.0.0.1:1081] WRITE: messageType: STDIN_FRAGMENT requestId: 2 stdinFragment: "hello\n"
-    08:15:49.568 [New I/O worker #1] DEBUG c.t.r.common.NettyLoggingHandler - [id: 0xe45373eb, /127.0.0.1:51540 => /127.0.0.1:1081] RECEIVED: messageType: STDOUT_FRAGMENT requestId: 2 fragment: "hello\n"
+    08:15:49.565 [main] DEBUG n.f.r.common.NettyLoggingHandler - [id: 0xe45373eb, /127.0.0.1:51540 => /127.0.0.1:1081] WRITE: messageType: STDIN_FRAGMENT requestId: 2 stdinFragment: "hello\n"
+    08:15:49.568 [New I/O worker #1] DEBUG n.f.r.common.NettyLoggingHandler - [id: 0xe45373eb, /127.0.0.1:51540 => /127.0.0.1:1081] RECEIVED: messageType: STDOUT_FRAGMENT requestId: 2 fragment: "hello\n"
     c 2
-    08:16:00.580 [main] DEBUG c.t.r.common.NettyLoggingHandler - [id: 0xe45373eb, /127.0.0.1:51540 => /127.0.0.1:1081] WRITE: messageType: CLOSE_STDIN requestId: 2
-    08:16:00.584 [New I/O worker #1] DEBUG c.t.r.common.NettyLoggingHandler - [id: 0xe45373eb, /127.0.0.1:51540 => /127.0.0.1:1081] RECEIVED: messageType: EXITED requestId: 2 exitCode: 0
+    08:16:00.580 [main] DEBUG n.f.r.common.NettyLoggingHandler - [id: 0xe45373eb, /127.0.0.1:51540 => /127.0.0.1:1081] WRITE: messageType: CLOSE_STDIN requestId: 2
+    08:16:00.584 [New I/O worker #1] DEBUG n.f.r.common.NettyLoggingHandler - [id: 0xe45373eb, /127.0.0.1:51540 => /127.0.0.1:1081] RECEIVED: messageType: EXITED requestId: 2 exitCode: 0
 
 
 ## System Properties
@@ -84,7 +84,7 @@ Using maven you need this in your pom.xml:
 
     <dependencies>
       <dependency>
-        <groupId>com.twock.remoterun</groupId>
+        <groupId>net.formicary.remoterun</groupId>
         <artifactId>remoterun-embed</artifactId>
         <version>1.0</version>
       </dependency>
@@ -93,10 +93,26 @@ Using maven you need this in your pom.xml:
     <repositories>
       <repository>
         <id>remoterun-mvn-repo</id>
-        <url>https://raw.github.com/echinus/remoterun/mvn-repo/</url>
+        <url>https://raw.github.com/formicary/remoterun/mvn-repo/</url>
         <snapshots>
           <enabled>true</enabled>
           <updatePolicy>always</updatePolicy>
         </snapshots>
       </repository>
     </repositories>
+
+## Licensing
+
+Copyright 2014 Formicary Ltd
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
