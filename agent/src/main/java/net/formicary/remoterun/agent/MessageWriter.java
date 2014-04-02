@@ -14,17 +14,13 @@
  * limitations under the License.
  */
 
-package net.formicary.remoterun.embed;
+package net.formicary.remoterun.agent;
 
 import net.formicary.remoterun.common.proto.RemoteRun;
 
 /**
  * @author Chris Pearson
  */
-public interface AgentConnectionCallback {
-  void agentConnected(AgentConnection agentConnection);
-
-  void messageReceived(AgentConnection agentConnection, RemoteRun.AgentToMaster message) throws Exception;
-
-  void agentDisconnected(AgentConnection agentConnection);
+public interface MessageWriter {
+  void write(RemoteRun.AgentToMaster message);
 }

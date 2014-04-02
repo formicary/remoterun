@@ -50,7 +50,7 @@
   </scm>
 
   <properties>
-    <!-- github server corresponds to entry in ~/.m2/settings.xml -->
+    <!-- github server selects a "servers" entry from ~/.m2/settings.xml for user/pass -->
     <github.global.server>github</github.global.server>
   </properties>
 

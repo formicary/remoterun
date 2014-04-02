@@ -102,9 +102,17 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
   }
 
   @Override
-  public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-    callback.messageReceived((AgentConnection)ctx.getChannel().getAttachment(), (RemoteRun.AgentToMaster)e.getMessage());
-    ctx.sendUpstream(e);
+  public void messageReceived(ChannelHandlerContext ctx, MessageEvent message) throws Exception {
+    try {
+      callback.messageReceived((AgentConnection)ctx.getChannel().getAttachment(), (RemoteRun.AgentToMaster)message.getMessage());
+      ctx.sendUpstream(message);
+    } catch(Exception e) {
+      SSLEngine engine = message.getChannel().getPipeline().get(SslHandler.class).getEngine();
+      X509Certificate peerCertificate = engine.getSession().getPeerCertificateChain()[0];
+      String description = message.getChannel().getRemoteAddress() + " (" + peerCertificate.getSubjectDN().toString() + ")";
+      log.error("Failed to process " + ((RemoteRun.AgentToMaster)message.getMessage()).getMessageType() + " message, closing connection to " + description, e);
+      message.getChannel().close();
+    }
   }
 
   @Override
@@ -125,9 +133,15 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
       connection.setConnectionState(ConnectionState.CONNECTED);
       SSLEngine engine = future.getChannel().getPipeline().get(SslHandler.class).getEngine();
       X509Certificate peerCertificate = engine.getSession().getPeerCertificateChain()[0];
-      log.info("Agent connection complete from " + future.getChannel().getRemoteAddress() + " (" + peerCertificate.getSubjectDN().toString() + ")");
+      String description = future.getChannel().getRemoteAddress() + " (" + peerCertificate.getSubjectDN().toString() + ")";
+      log.info("Agent connection complete from " + description);
       if(callback != null) {
-        callback.agentConnected(connection);
+        try {
+          callback.agentConnected(connection);
+        } catch(Exception e) {
+          log.error("Failed to process connected callback, closing connection to " + description, e);
+          future.getChannel().close();
+        }
       }
     } else {
       future.getChannel().close();

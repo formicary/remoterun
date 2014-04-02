@@ -5,11 +5,13 @@ message MasterToAgent {
   optional int64 requestId = 2;
   optional RunCommand runCommand = 3;
   optional bytes stdinFragment = 4;
+  optional RequestData requestData = 5;
 
   enum MessageType {
     RUN_COMMAND = 1; // requestId and runCommand populated
     STDIN_FRAGMENT = 2; // requestId and stdinFragment populated
     CLOSE_STDIN = 3; // requestId populated
+    REQUEST_DATA = 4; // (requestId, requestData) populated
   }
 
   message RunCommand {
@@ -21,6 +23,10 @@ message MasterToAgent {
       required string key = 1;
       required string value = 2;
     }
+  }
+
+  message RequestData {
+    required string fullPath = 1;
   }
 }
 
@@ -36,5 +42,6 @@ message AgentToMaster {
     STDOUT_FRAGMENT = 2; // requestId and fragment populated
     STDERR_FRAGMENT = 3; // requestId and fragment populated
     EXITED = 4; // requestId and exitCode populated
+    REQUESTED_DATA = 5; // (requestId, fragment, exitCode [if finished], exitReason [if failed]) populated
   }
 }

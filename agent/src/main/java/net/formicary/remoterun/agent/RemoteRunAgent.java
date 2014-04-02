@@ -18,15 +18,17 @@ package net.formicary.remoterun.agent;
 
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
+import java.util.concurrent.locks.ReentrantLock;
+import javax.annotation.PreDestroy;
+import javax.inject.Inject;
 import javax.net.ssl.*;
 
-import com.google.protobuf.ByteString;
-import net.formicary.remoterun.agent.process.ProcessHelper;
-import net.formicary.remoterun.agent.process.ReadCallback;
+import net.formicary.remoterun.agent.handler.Handler;
+import net.formicary.remoterun.agent.handler.MasterToAgentHandler;
 import net.formicary.remoterun.common.KeyStoreUtil;
 import net.formicary.remoterun.common.NettyLoggingHandler;
 import net.formicary.remoterun.common.RemoteRunException;
@@ -41,6 +43,8 @@ import org.jboss.netty.handler.codec.protobuf.ProtobufEncoder;
 import org.jboss.netty.handler.ssl.SslHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.stereotype.Component;
 
 /**
  * The "agent" is a TCP client that connects to a TCP server hosted by an embedded "master" server for the issuing of
@@ -48,20 +52,25 @@ import org.slf4j.LoggerFactory;
  *
  * @author Chris Pearson
  */
-public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutureListener, ReadCallback {
+@Component
+public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutureListener, MessageWriter {
   private static final Logger log = LoggerFactory.getLogger(RemoteRunAgent.class);
   private static final int RECONNECT_DELAY = 10000;
-  private final InetSocketAddress address;
-  private final Map<Long, ProcessHelper> processes = Collections.synchronizedMap(new TreeMap<Long, ProcessHelper>());
+  private final Executor writePool;
+  private final AnnotationConfigApplicationContext beanFactory;
   private final ClientBootstrap bootstrap;
+  private final ReentrantLock writeLock = new ReentrantLock(true);
+  private InetSocketAddress address;
   private boolean shutdown = false;
   private Channel channel;
   private ChannelFuture handshakeFuture;
   private Timer timer;
   private ChannelFuture lastWriteFuture;
 
-  public RemoteRunAgent(InetSocketAddress address, Executor bossExecutor, Executor workerExecutor) {
-    this.address = address;
+  @Inject
+  public RemoteRunAgent(Executor bossExecutor, Executor workerExecutor, Executor writePool, AnnotationConfigApplicationContext beanFactory) {
+    this.writePool = writePool;
+    this.beanFactory = beanFactory;
     bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(bossExecutor, workerExecutor));
     bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
       @Override
@@ -86,12 +95,9 @@ public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutur
 
   public static void main(String[] args) {
     String hostname = args.length >= 1 ? args[0] : "127.0.0.1";
-    int port = args.length >= 2 ? Integer.parseInt(args[0]) : 1081;
+    int port = args.length >= 2 ? Integer.parseInt(args[1]) : 1081;
     InetSocketAddress serverAddress = new InetSocketAddress(hostname, port);
-    Executor bossExecutor = Executors.newCachedThreadPool();
-    Executor workerExecutor = Executors.newCachedThreadPool();
-    RemoteRunAgent agent = new RemoteRunAgent(serverAddress, bossExecutor, workerExecutor);
-    agent.connect();
+    new AnnotationConfigApplicationContext(AgentSpringConfig.class).getBean(RemoteRunAgent.class).connect(serverAddress);
   }
 
   public static SSLEngine createSslEngine() {
@@ -108,7 +114,8 @@ public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutur
     }
   }
 
-  public ChannelFuture connect() {
+  public ChannelFuture connect(InetSocketAddress address) {
+    this.address = address;
     ChannelFuture connect = bootstrap.connect(address);
     channel = connect.getChannel();
     return connect;
@@ -129,7 +136,6 @@ public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutur
     if(future.isSuccess()) {
       handshakeFuture = null;
       log.info("Agent SSL handshake completed, connected to " + future.getChannel().getRemoteAddress());
-      // todo: connected successfully
     } else {
       future.getChannel().close();
     }
@@ -158,47 +164,41 @@ public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutur
 
   @Override
   public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-    RemoteRun.MasterToAgent message = (RemoteRun.MasterToAgent)e.getMessage();
-    long requestId = message.getRequestId();
-    if(RemoteRun.MasterToAgent.MessageType.RUN_COMMAND == message.getMessageType()) {
-      RemoteRun.MasterToAgent.RunCommand runCommand = message.getRunCommand();
-      try {
-        // start the process
-        ProcessHelper processHelper = new ProcessHelper(requestId, runCommand.getCmd(), runCommand.getArgsList(), this);
-        processes.put(requestId, processHelper);
-        // write a success reply
-        write(RemoteRun.AgentToMaster.newBuilder().setMessageType(RemoteRun.AgentToMaster.MessageType.STARTED).setRequestId(requestId).build());
-        processHelper.start();
-      } catch(Exception e1) {
-        log.info("Failed to start process " + runCommand, e1);
-        // write a failure reply
-        write(RemoteRun.AgentToMaster.newBuilder().setMessageType(RemoteRun.AgentToMaster.MessageType.EXITED)
-          .setRequestId(requestId).setExitCode(-1)
-          .setExitReason(e1.getClass().getName() + ": " + e1.getMessage())
-          .build());
+    final RemoteRun.MasterToAgent message = (RemoteRun.MasterToAgent)e.getMessage();
+    writePool.execute(new Runnable() {
+      @Override
+      public void run() {
+        Map<String, Object> handlers = beanFactory.getBeansWithAnnotation(Handler.class);
+        for(Object o : handlers.values()) {
+          Handler handlerSpec = o.getClass().getAnnotation(Handler.class);
+          for(RemoteRun.MasterToAgent.MessageType type : handlerSpec.value()) {
+            if(type.equals(message.getMessageType())) {
+              ((MasterToAgentHandler)o).handle(type, message, RemoteRunAgent.this);
+            }
+          }
+        }
       }
-
-    } else if(RemoteRun.MasterToAgent.MessageType.STDIN_FRAGMENT == message.getMessageType()) {
-      ProcessHelper processHelper = processes.get(requestId);
-      if(processHelper == null) {
-        log.warn("Ignoring STDIN fragment for invalid request ID " + requestId);
-      } else {
-        processHelper.writeStdIn(message.getStdinFragment().toByteArray());
-      }
-
-    } else if(RemoteRun.MasterToAgent.MessageType.CLOSE_STDIN == message.getMessageType()) {
-      ProcessHelper processHelper = processes.get(requestId);
-      if(processHelper == null) {
-        log.warn("Ignoring CLOSE_STDIN request for invalid request ID " + requestId);
-      } else {
-        processHelper.closeStdIn();
-      }
-    }
+    });
     ctx.sendUpstream(e);
   }
 
-  private void write(RemoteRun.AgentToMaster message) {
-    lastWriteFuture = channel.write(message);
+  @Override
+  public void write(RemoteRun.AgentToMaster message) {
+    // fair write lock to ensure every thread gets a chance to write data, and avoid a single thread hogging the writes
+    // if write buffer is full, only one thread will be within the write/waitUntilWriteable call
+    // Given that data is written a chunk at a time, the fair lock should ensure everything gets a look in
+    writeLock.lock();
+    try {
+      if(lastWriteFuture != null) {
+        try {
+          lastWriteFuture.await();
+        } catch(InterruptedException e) {
+        }
+      }
+      lastWriteFuture = channel.write(message);
+    } finally {
+      writeLock.unlock();
+    }
   }
 
   @Override
@@ -213,46 +213,16 @@ public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutur
       timer.schedule(new TimerTask() {
         @Override
         public void run() {
-          connect();
+          connect(address);
           timer.cancel();
         }
       }, RECONNECT_DELAY);
     }
   }
 
+  @PreDestroy
   public void shutdown() {
     shutdown = true;
     bootstrap.shutdown();
-  }
-
-  @Override
-  public void dataAvailable(ByteBuffer buffer, long serverId, RemoteRun.AgentToMaster.MessageType type) {
-    waitUntilWritable();
-    write(RemoteRun.AgentToMaster.newBuilder().setMessageType(type)
-      .setRequestId(serverId)
-      .setFragment(ByteString.copyFrom(buffer)).build());
-  }
-
-  private void waitUntilWritable() {
-    if(!channel.isWritable()) {
-      try {
-        lastWriteFuture.await();
-      } catch(InterruptedException e) {
-      }
-    }
-  }
-
-  @Override
-  public void finished(long serverId) {
-    ProcessHelper processHelper = processes.get(serverId);
-    if(processHelper != null && processHelper.isFinished()) {
-      waitUntilWritable();
-      ProcessHelper process = processes.remove(serverId);
-      if(process != null) {
-        write(RemoteRun.AgentToMaster.newBuilder().setMessageType(RemoteRun.AgentToMaster.MessageType.EXITED)
-          .setRequestId(serverId)
-          .setExitCode(processHelper.getProcess().exitValue()).build());
-      }
-    }
   }
 }
