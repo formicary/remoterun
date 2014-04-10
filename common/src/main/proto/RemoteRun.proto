@@ -4,14 +4,91 @@ message MasterToAgent {
   required MessageType messageType = 1;
   optional int64 requestId = 2;
   optional RunCommand runCommand = 3;
-  optional bytes stdinFragment = 4;
-  optional RequestData requestData = 5;
+  optional bytes fragment = 4;
+  optional bool dataSuccess = 5;
+  optional string path = 6;
 
   enum MessageType {
-    RUN_COMMAND = 1; // requestId and runCommand populated
-    STDIN_FRAGMENT = 2; // requestId and stdinFragment populated
-    CLOSE_STDIN = 3; // requestId populated
-    REQUEST_DATA = 4; // (requestId, requestData) populated
+    /*
+    (requestId, runCommand) populated
+
+    A request to run the given command on the agent.  The requestId is used to identify all future messages concerning
+    this particular process instance.
+    */
+    RUN_COMMAND = 1; //
+
+    /*
+    (requestId, fragment) populated
+
+    An additional fragment of stdin data that should be sent to the specified process running on the agent.  Will be
+    ignored by the agent if process is not running.
+    */
+    STDIN_FRAGMENT = 2;
+
+    /*
+    (requestId) populated
+
+    An instruction to close the stdin stream since no more data will be provided to the process.   It is not required to
+    close stdin.
+    */
+    CLOSE_STDIN = 3;
+
+    /*
+    (requestId, path) populated
+
+    Message #1: Master to Agent
+    When the master wants a file from the agent, it sends a REQUEST_DATA stating which file or directory it wants.
+
+    Message #2+: Agent to Master
+    The agent responds with one or more REQUESTED_DATA messages including the requestId and fragment of data.  When the
+    file is either finished sending, or the agent encountered a problem that caused it to fail, the exitCode and
+    exitReason are populated where applicable.
+    */
+    REQUEST_DATA = 4;
+
+    /*
+    (requestId, path) populated
+
+    Message #1: Master to Agent
+    When the master wants to send the agent a file, it sends a SEND_DATA_NOTIFICATION to the agent.  This contains a
+    location on the agent that the master would like to use to store the sent file, and a request ID to correlate
+    related SEND_DATA_* type messages.
+    SEND_DATA_NOTIFICATION has (requestId, path) populated.
+
+    Message #2: Master to Agent
+    Subsequently, the master sends one or more SEND_DATA_FRAGMENT messages containing the actual data, and then when it
+    finishes or errors, the final SEND_DATA_FRAGMENT will have dataSuccess set.  If false, no error information is
+    provided since the failure occurred on the master side, and the agent shouldn't know anything about it.
+    SEND_DATA_FRAGMENT has (requestId, fragment [if any], dataSuccess [true if finished ok, false if failed]) populated
+
+    Message #3: Agent to Master
+    After receiving the final SEND_DATA_FRAGMENT, the agent responds to the master to tell if it has been successful
+    writing the file to the requested location, or returning an error if anything has gone wrong.
+    (requestId, exitCode [if receiving and finished], exitReason [if failed]) populated
+    */
+    SEND_DATA_NOTIFICATION = 5;
+
+    /*
+    (requestId, fragment [if any], dataSuccess [true if finished ok, false if failed]) populated
+
+    Message #1: Master to Agent
+    When the master wants to send the agent a file, it sends a SEND_DATA_NOTIFICATION to the agent.  This contains a
+    location on the agent that the master would like to use to store the sent file, and a request ID to correlate
+    related SEND_DATA_* type messages.
+    SEND_DATA_NOTIFICATION has (requestId, path) populated.
+
+    Message #2: Master to Agent
+    Subsequently, the master sends one or more SEND_DATA_FRAGMENT messages containing the actual data, and then when it
+    finishes or errors, the final SEND_DATA_FRAGMENT will have dataSuccess set.  If false, no error information is
+    provided since the failure occurred on the master side, and the agent shouldn't know anything about it.
+    SEND_DATA_FRAGMENT has (requestId, fragment [if any], dataSuccess [true if finished ok, false if failed]) populated
+
+    Message #3: Agent to Master
+    After receiving the final SEND_DATA_FRAGMENT, the agent responds to the master to tell if it has been successful
+    writing the file to the requested location, or returning an error if anything has gone wrong.
+    (requestId, exitCode [if receiving and finished], exitReason [if failed]) populated
+    */
+    SEND_DATA_FRAGMENT = 6;
   }
 
   message RunCommand {
@@ -24,10 +101,6 @@ message MasterToAgent {
       required string value = 2;
     }
   }
-
-  message RequestData {
-    required string fullPath = 1;
-  }
 }
 
 message AgentToMaster {
@@ -38,10 +111,69 @@ message AgentToMaster {
   optional string exitReason = 5; // only supplied if it failed to start
 
   enum MessageType {
-    STARTED = 1; // requestId populated
-    STDOUT_FRAGMENT = 2; // requestId and fragment populated
-    STDERR_FRAGMENT = 3; // requestId and fragment populated
-    EXITED = 4; // requestId and exitCode populated
-    REQUESTED_DATA = 5; // (requestId, fragment, exitCode [if finished], exitReason [if failed]) populated
+    /*
+    (requestId) populated
+
+    When the agent starts a process, it informs the master that the process has been started successfully.
+    */
+    STARTED = 1;
+
+    /*
+    (requestId, fragment) populated
+
+    Some data has been output by the process on the stdout stream, relay it to the master.
+    */
+    STDOUT_FRAGMENT = 2;
+
+    /*
+    (requestId, fragment) populated
+
+    Some data has been output by the process on the stderr stream, relay it to the master.
+    */
+    STDERR_FRAGMENT = 3;
+
+    /*
+    (requestId, exitCode, exitReason [if failed]) populated
+
+    A process has finished, this message notifies the master of the conditions under which it terminated.  A non-zero
+    exit code indicates failure, and the exitReason is supplied if there was an error whilst running the process or
+    reading from its streams, etc.
+    */
+    EXITED = 4;
+
+    /*
+    (requestId, fragment, exitCode [if uploading and finished], exitReason [if failed]) populated
+
+    Message #1: Master to Agent
+    When the master wants a file from the agent, it sends a REQUEST_DATA stating which file or directory it wants.
+
+    Message #2+: Agent to Master
+    The agent responds with one or more REQUESTED_DATA messages including the requestId and fragment of data.  When the
+    file is either finished sending, or the agent encountered a problem that caused it to fail, the exitCode and
+    exitReason are populated where applicable.
+    */
+    REQUESTED_DATA = 5;
+
+    /*
+    (requestId, exitCode [if receiving and finished], exitReason [if failed]) populated
+
+    Message #1: Master to Agent
+    When the master wants to send the agent a file, it sends a SEND_DATA_NOTIFICATION to the agent.  This contains a
+    location on the agent that the master would like to use to store the sent file, and a request ID to correlate
+    related SEND_DATA_* type messages.
+    SEND_DATA_NOTIFICATION has (requestId, path) populated.
+
+    Message #2+: Master to Agent
+    Subsequently, the master sends one or more SEND_DATA_FRAGMENT messages containing the actual data, and then when it
+    finishes or errors, the final SEND_DATA_FRAGMENT will have dataSuccess set.  If false, no error information is
+    provided since the failure occurred on the master side, and the agent shouldn't know anything about it.
+    SEND_DATA_FRAGMENT has (requestId, fragment [if any], dataSuccess [true if finished ok, false if failed]) populated
+
+    Message #3: Agent to Master
+    After receiving the final SEND_DATA_FRAGMENT, the agent responds to the master to tell if it has been successful
+    writing the file to the requested location, or returning an error if anything has gone wrong.
+    (requestId, exitCode [if receiving and finished], exitReason [if failed]) populated
+    */
+    RECEIVED_DATA = 6;
   }
 }

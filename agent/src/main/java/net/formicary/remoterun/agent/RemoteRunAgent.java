@@ -18,20 +18,17 @@ package net.formicary.remoterun.agent;
 
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
-import java.util.Map;
+import java.nio.file.Paths;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.PreDestroy;
-import javax.inject.Inject;
 import javax.net.ssl.*;
 
-import net.formicary.remoterun.agent.handler.Handler;
-import net.formicary.remoterun.agent.handler.MasterToAgentHandler;
-import net.formicary.remoterun.common.KeyStoreUtil;
-import net.formicary.remoterun.common.NettyLoggingHandler;
-import net.formicary.remoterun.common.RemoteRunException;
+import com.google.protobuf.ByteString;
+import net.formicary.remoterun.common.*;
 import net.formicary.remoterun.common.proto.RemoteRun;
 import org.jboss.netty.bootstrap.ClientBootstrap;
 import org.jboss.netty.channel.*;
@@ -43,8 +40,9 @@ import org.jboss.netty.handler.codec.protobuf.ProtobufEncoder;
 import org.jboss.netty.handler.ssl.SslHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.stereotype.Component;
+
+import static net.formicary.remoterun.common.proto.RemoteRun.AgentToMaster.MessageType.REQUESTED_DATA;
+import static net.formicary.remoterun.common.proto.RemoteRun.MasterToAgent.MessageType.*;
 
 /**
  * The "agent" is a TCP client that connects to a TCP server hosted by an embedded "master" server for the issuing of
@@ -52,12 +50,12 @@ import org.springframework.stereotype.Component;
  *
  * @author Chris Pearson
  */
-@Component
-public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutureListener, MessageWriter {
+public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutureListener {
   private static final Logger log = LoggerFactory.getLogger(RemoteRunAgent.class);
   private static final int RECONNECT_DELAY = 10000;
+  private final ProcessHandler processHandler = new ProcessHandler();
+  private final SentFileHandler sentFileHandler = new SentFileHandler();
   private final Executor writePool;
-  private final AnnotationConfigApplicationContext beanFactory;
   private final ClientBootstrap bootstrap;
   private final ReentrantLock writeLock = new ReentrantLock(true);
   private InetSocketAddress address;
@@ -67,10 +65,8 @@ public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutur
   private Timer timer;
   private ChannelFuture lastWriteFuture;
 
-  @Inject
-  public RemoteRunAgent(Executor bossExecutor, Executor workerExecutor, Executor writePool, AnnotationConfigApplicationContext beanFactory) {
+  public RemoteRunAgent(Executor bossExecutor, Executor workerExecutor, Executor writePool) {
     this.writePool = writePool;
-    this.beanFactory = beanFactory;
     bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(bossExecutor, workerExecutor));
     bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
       @Override
@@ -97,7 +93,8 @@ public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutur
     String hostname = args.length >= 1 ? args[0] : "127.0.0.1";
     int port = args.length >= 2 ? Integer.parseInt(args[1]) : 1081;
     InetSocketAddress serverAddress = new InetSocketAddress(hostname, port);
-    new AnnotationConfigApplicationContext(AgentSpringConfig.class).getBean(RemoteRunAgent.class).connect(serverAddress);
+    new RemoteRunAgent(Executors.newCachedThreadPool(), Executors.newCachedThreadPool(), Executors.newCachedThreadPool())
+      .connect(serverAddress);
   }
 
   public static SSLEngine createSslEngine() {
@@ -165,24 +162,52 @@ public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutur
   @Override
   public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
     final RemoteRun.MasterToAgent message = (RemoteRun.MasterToAgent)e.getMessage();
-    writePool.execute(new Runnable() {
-      @Override
-      public void run() {
-        Map<String, Object> handlers = beanFactory.getBeansWithAnnotation(Handler.class);
-        for(Object o : handlers.values()) {
-          Handler handlerSpec = o.getClass().getAnnotation(Handler.class);
-          for(RemoteRun.MasterToAgent.MessageType type : handlerSpec.value()) {
-            if(type.equals(message.getMessageType())) {
-              ((MasterToAgentHandler)o).handle(type, message, RemoteRunAgent.this);
-            }
+    final RemoteRun.MasterToAgent.MessageType type = message.getMessageType();
+
+    if(type == REQUEST_DATA) {
+      final long requestId = message.getRequestId();
+      writePool.execute(new FileStreamer(Paths.get(message.getPath()), new FileStreamer.FileStreamerCallback() {
+        @Override
+        public void writeDataChunk(byte[] data, int offset, int length) {
+          write(RemoteRun.AgentToMaster.newBuilder()
+            .setMessageType(REQUESTED_DATA)
+            .setRequestId(requestId)
+            .setFragment(ByteString.copyFrom(data, offset, length))
+            .build());
+        }
+
+        @Override
+        public void finished(boolean success, String errorMessage, Throwable cause) {
+          RemoteRun.AgentToMaster.Builder builder = RemoteRun.AgentToMaster.newBuilder()
+            .setMessageType(REQUESTED_DATA)
+            .setRequestId(requestId);
+          if(success) {
+            builder.setExitCode(0);
+          } else {
+            builder.setExitCode(1).setExitReason(errorMessage + ": " + cause.toString());
+          }
+          write(builder.build());
+        }
+      }));
+
+    } else {
+      writePool.execute(new Runnable() {
+        @Override
+        public void run() {
+          if(type == RUN_COMMAND || type == STDIN_FRAGMENT || type == CLOSE_STDIN) {
+            processHandler.handle(message, RemoteRunAgent.this);
+
+          } else if (type == SEND_DATA_NOTIFICATION || type == SEND_DATA_FRAGMENT) {
+            sentFileHandler.handle(message, RemoteRunAgent.this);
+
           }
         }
-      }
-    });
+      });
+
+    }
     ctx.sendUpstream(e);
   }
 
-  @Override
   public void write(RemoteRun.AgentToMaster message) {
     // fair write lock to ensure every thread gets a chance to write data, and avoid a single thread hogging the writes
     // if write buffer is full, only one thread will be within the write/waitUntilWriteable call

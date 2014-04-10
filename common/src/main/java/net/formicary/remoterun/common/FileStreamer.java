@@ -14,35 +14,31 @@
  * limitations under the License.
  */
 
-package net.formicary.remoterun.agent.handler;
+package net.formicary.remoterun.common;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.*;
 import java.nio.file.attribute.*;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import net.formicary.remoterun.agent.AgentOutputStream;
-import net.formicary.remoterun.agent.MessageWriter;
-import net.formicary.remoterun.common.proto.RemoteRun;
 import org.apache.commons.io.Charsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
 import static java.nio.file.attribute.PosixFilePermission.*;
-import static net.formicary.remoterun.common.proto.RemoteRun.AgentToMaster.MessageType.REQUESTED_DATA;
-import static net.formicary.remoterun.common.proto.RemoteRun.MasterToAgent.MessageType;
 
 /**
+ * A class responsible for reading a file or directory and streaming a series of data chunks to a callback.  If any
+ * errors are thrown either finding files, or whilst reading files, they are propagated to the callback.
+ *
  * @author Chris Pearson
  */
-@Handler(MessageType.REQUEST_DATA)
-@Component
-public class RequestDataHandler implements MasterToAgentHandler {
-  private static final Logger log = LoggerFactory.getLogger(RequestDataHandler.class);
+public class FileStreamer implements Runnable {
+  private static final Logger log = LoggerFactory.getLogger(FileStreamer.class);
   private static final String IS_DIRECTORY = "isDirectory";
   private static final String LAST_MODIFIED = "lastModifiedTime";
   private static final PosixFilePermission[] POSIX_ORDER = {
@@ -50,30 +46,61 @@ public class RequestDataHandler implements MasterToAgentHandler {
     GROUP_READ, GROUP_WRITE, GROUP_EXECUTE,
     OTHERS_READ, OTHERS_WRITE, OTHERS_EXECUTE
   };
+  private static final int MAX_FRAGMENT_SIZE = 1000000; /*TODO: work out best size*/
+  private final Path path;
+  private final FileStreamerCallback callback;
+  private final ZipOutputStream zipOutput;
+  private boolean finished = false;
+
+  public FileStreamer(Path path, final FileStreamerCallback callback) {
+    this.path = path;
+    this.callback = callback;
+    BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(new OutputStream() {
+      @Override
+      public void write(int b) throws IOException {
+        write(new byte[]{(byte)(b & 0xFF)}, 0, 1);
+      }
+
+      @Override
+      public void write(byte[] b, int off, int len) throws IOException {
+        callback.writeDataChunk(b, off, len);
+      }
+
+      @Override
+      public void close() throws IOException {
+      }
+    }, MAX_FRAGMENT_SIZE);
+    zipOutput = new ZipOutputStream(bufferedOutputStream);
+  }
+
+  private synchronized void finish(boolean success, String errorMessage, Throwable cause) {
+    if(finished) {
+      log.warn("Trying to call finished again, despite previous call, ignoring: " + errorMessage, cause);
+    } else {
+      finished = true;
+      try {
+        zipOutput.close();
+      } catch(Exception e) {
+        if(success) {
+          success = false;
+          errorMessage = "Failed to close output";
+          cause = e;
+        } else {
+          log.debug("Failed to close output when finishing file streaming of " + path, e);
+        }
+      }
+      callback.finished(success, errorMessage, cause);
+    }
+  }
 
   @Override
-  public void handle(MessageType type, RemoteRun.MasterToAgent message, MessageWriter messageWriter) {
-    String fullPath = message.getRequestData().getFullPath();
-    Path path = Paths.get(fullPath);
-
-    AgentOutputStream out = new AgentOutputStream(message.getRequestId(), messageWriter);
-    BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(out, 1000000 /*TODO: work out best size*/);
-    ZipOutputStream zipOutput = new ZipOutputStream(bufferedOutputStream);
-
+  public void run() {
     try {
       Map<String, Object> attributes = Files.readAttributes(path, IS_DIRECTORY, LinkOption.NOFOLLOW_LINKS);
       send(path, Boolean.TRUE.equals(attributes.get(IS_DIRECTORY)) ? path : path.getParent(), zipOutput);
-      zipOutput.close();
-      bufferedOutputStream.close();
-      out.close();
+      finish(true, null, null);
     } catch(Exception e) {
-      log.error("Failed to compress and send " + path.toString(), e);
-      messageWriter.write(RemoteRun.AgentToMaster.newBuilder()
-        .setMessageType(REQUESTED_DATA)
-        .setRequestId(message.getRequestId())
-        .setExitCode(-1)
-        .setExitReason("Failed to compress and send " + path.toString() + ": " + e.toString())
-        .build());
+      finish(false, "Failed to compress and send " + path.toString(), e);
     }
   }
 
@@ -113,5 +140,11 @@ public class RequestDataHandler implements MasterToAgentHandler {
     } else {
       Files.copy(path, zipOutput);
     }
+  }
+
+  public static interface FileStreamerCallback {
+    void writeDataChunk(byte[] data, int offset, int length);
+
+    void finished(boolean success, String errorMessage, Throwable cause);
   }
 }

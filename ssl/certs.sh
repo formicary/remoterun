@@ -82,10 +82,13 @@ O      = Formicary Ltd
 CN     = server
 EOF
 chmod 600 server-config.cnf
-openssl req -newkey rsa:${RSA_BITS} -keyout server-key.pem -out server-certrequest.pem -days 3650 -config server-config.cnf -nodes
+openssl req -newkey rsa:${RSA_BITS} -keyout server-key.pem -out server-certrequest.pem -days 3650 -config
+server-config.cnf -nodes
 openssl ca -key "${CA_PASS}" -days 365 -in server-certrequest.pem -out server-cert.pem -config ca-config.cnf -batch
-openssl pkcs12 -export -out server-pkcs12.pfx -in server-cert.pem -inkey server-key.pem -name server -CAfile ca-cert.pem -chain -passout "pass:${PFX_PASS}"
-keytool -importkeystore -srckeystore server-pkcs12.pfx -srcstoretype pkcs12 -srcstorepass 123456 -destkeystore server-keystore.jks -deststoretype jks -deststorepass 123456
+openssl pkcs12 -export -out server-pkcs12.pfx -in server-cert.pem -inkey server-key.pem -name server -CAfile ca-cert
+.pem -chain -passout "pass:${PFX_PASS}"
+keytool -importkeystore -srckeystore server-pkcs12.pfx -srcstoretype pkcs12 -srcstorepass 123456 -destkeystore
+server-keystore.jks -deststoretype jks -deststorepass 123456
 
 # Generate agent certificates
 for NAME in agent1 agent2 ; do
@@ -106,8 +109,11 @@ O      = Formicary Ltd
 CN     = ${NAME}
 EOF
 chmod 600 ${NAME}-config.cnf
-openssl req -newkey rsa:${RSA_BITS} -keyout ${NAME}-key.pem -out ${NAME}-certrequest.pem -days 3650 -config ${NAME}-config.cnf -nodes
+openssl req -newkey rsa:${RSA_BITS} -keyout ${NAME}-key.pem -out ${NAME}-certrequest.pem -days 3650 -config
+${NAME}-config.cnf -nodes
 openssl ca -key "${CA_PASS}" -days 365 -in ${NAME}-certrequest.pem -out ${NAME}-cert.pem -config ca-config.cnf -batch
-openssl pkcs12 -export -out ${NAME}-pkcs12.pfx -in ${NAME}-cert.pem -inkey ${NAME}-key.pem -name ${NAME} -CAfile ca-cert.pem -chain -passout "pass:${PFX_PASS}"
-keytool -importkeystore -srckeystore ${NAME}-pkcs12.pfx -srcstoretype pkcs12 -srcstorepass 123456 -destkeystore ${NAME}-keystore.jks -deststoretype jks -deststorepass 123456
+openssl pkcs12 -export -out ${NAME}-pkcs12.pfx -in ${NAME}-cert.pem -inkey ${NAME}-key.pem -name ${NAME} -CAfile
+ca-cert.pem -chain -passout "pass:${PFX_PASS}"
+keytool -importkeystore -srckeystore ${NAME}-pkcs12.pfx -srcstoretype pkcs12 -srcstorepass 123456 -destkeystore
+${NAME}-keystore.jks -deststoretype jks -deststorepass 123456
 done

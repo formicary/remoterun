@@ -19,6 +19,7 @@ package net.formicary.remoterun.embed;
 import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicLong;
 import javax.net.ssl.*;
 import javax.security.cert.X509Certificate;
 
@@ -44,11 +45,14 @@ import org.slf4j.LoggerFactory;
  */
 public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutureListener {
   private static final Logger log = LoggerFactory.getLogger(RemoteRunMaster.class);
+  private static final AtomicLong NEXT_REQUEST_ID = new AtomicLong();
   private final Set<AgentConnection> agentConnections = Collections.synchronizedSet(new HashSet<AgentConnection>());
+  private final Executor writePool;
   private final ServerBootstrap bootstrap;
   private AgentConnectionCallback callback;
 
-  public RemoteRunMaster(Executor bossExecutor, Executor workerExecutor, AgentConnectionCallback callback) {
+  public RemoteRunMaster(Executor bossExecutor, Executor workerExecutor, Executor writePool, AgentConnectionCallback callback) {
+    this.writePool = writePool;
     this.callback = callback;
     NioServerSocketChannelFactory factory = new NioServerSocketChannelFactory(bossExecutor, workerExecutor);
     bootstrap = new ServerBootstrap(factory);
@@ -71,6 +75,10 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
     });
     bootstrap.setOption("child.tcpNoDelay", true);
     bootstrap.setOption("child.keepAlive", true);
+  }
+
+  public static long getNextRequestId() {
+    return NEXT_REQUEST_ID.getAndIncrement();
   }
 
   public static SSLEngine createSslEngine() {
@@ -102,17 +110,30 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
   }
 
   @Override
-  public void messageReceived(ChannelHandlerContext ctx, MessageEvent message) throws Exception {
-    try {
-      callback.messageReceived((AgentConnection)ctx.getChannel().getAttachment(), (RemoteRun.AgentToMaster)message.getMessage());
-      ctx.sendUpstream(message);
-    } catch(Exception e) {
-      SSLEngine engine = message.getChannel().getPipeline().get(SslHandler.class).getEngine();
-      X509Certificate peerCertificate = engine.getSession().getPeerCertificateChain()[0];
-      String description = message.getChannel().getRemoteAddress() + " (" + peerCertificate.getSubjectDN().toString() + ")";
-      log.error("Failed to process " + ((RemoteRun.AgentToMaster)message.getMessage()).getMessageType() + " message, closing connection to " + description, e);
-      message.getChannel().close();
-    }
+  public void messageReceived(ChannelHandlerContext ctx, final MessageEvent message) throws Exception {
+    final AgentConnection agent = (AgentConnection)ctx.getChannel().getAttachment();
+    writePool.execute(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          callback.messageReceived(agent, (RemoteRun.AgentToMaster)message.getMessage());
+        } catch(Exception e) {
+          String peerDn;
+          try {
+            SSLEngine engine = message.getChannel().getPipeline().get(SslHandler.class).getEngine();
+            X509Certificate peerCertificate = engine.getSession().getPeerCertificateChain()[0];
+            peerDn = peerCertificate.getSubjectDN().toString();
+          } catch(SSLPeerUnverifiedException e1) {
+            log.trace("Unable to extract peer certificate DN", e1);
+            peerDn = "unknown";
+          }
+          String description = message.getChannel().getRemoteAddress() + " (" + peerDn + ")";
+          log.error("Failed to process " + ((RemoteRun.AgentToMaster)message.getMessage()).getMessageType() + " message, closing connection to " + description, e);
+          message.getChannel().close();
+        }
+      }
+    });
+    ctx.sendUpstream(message);
   }
 
   @Override
@@ -174,7 +195,7 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
   }
 
   public Collection<AgentConnection> getConnectedClients() {
-    List<AgentConnection> result = new ArrayList<AgentConnection>();
+    List<AgentConnection> result = new ArrayList<>();
     for(AgentConnection agentConnection : agentConnections) {
       if(agentConnection.getConnectionState() == ConnectionState.CONNECTED) {
         result.add(agentConnection);

@@ -22,9 +22,7 @@ import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.protobuf.ByteString;
 import net.formicary.remoterun.common.RemoteRunException;
@@ -70,7 +68,6 @@ import org.slf4j.LoggerFactory;
  */
 public class Server implements AgentConnectionCallback {
   private static final Logger log = LoggerFactory.getLogger(Server.class);
-  private static final AtomicLong NEXT_REQUEST_ID = new AtomicLong();
   private RemoteRunMaster remoteRunMaster;
 
   public static void main(String[] args) {
@@ -78,9 +75,7 @@ public class Server implements AgentConnectionCallback {
   }
 
   public void run() {
-    Executor bossExecutor = Executors.newCachedThreadPool();
-    Executor workerExecutor = Executors.newCachedThreadPool();
-    remoteRunMaster = new RemoteRunMaster(bossExecutor, workerExecutor, this);
+    remoteRunMaster = new RemoteRunMaster(Executors.newCachedThreadPool(), Executors.newCachedThreadPool(), Executors.newCachedThreadPool(), this);
     InetSocketAddress bindAddress = new InetSocketAddress(1081);
     remoteRunMaster.bind(bindAddress);
 
@@ -135,7 +130,7 @@ public class Server implements AgentConnectionCallback {
 
       RemoteRun.MasterToAgent.Builder builder = RemoteRun.MasterToAgent.newBuilder()
         .setMessageType(RemoteRun.MasterToAgent.MessageType.RUN_COMMAND)
-        .setRequestId(NEXT_REQUEST_ID.incrementAndGet());
+        .setRequestId(RemoteRunMaster.getNextRequestId());
       builder.getRunCommandBuilder().setCmd(command).addAllArgs(tokens);
       connection.getChannel().write(builder.build());
     }
@@ -157,7 +152,7 @@ public class Server implements AgentConnectionCallback {
       RemoteRun.MasterToAgent.Builder builder = RemoteRun.MasterToAgent.newBuilder()
         .setMessageType(RemoteRun.MasterToAgent.MessageType.STDIN_FRAGMENT)
         .setRequestId(id)
-        .setStdinFragment(ByteString.copyFromUtf8(input));
+        .setFragment(ByteString.copyFromUtf8(input));
       connection.getChannel().write(builder.build());
     }
   }

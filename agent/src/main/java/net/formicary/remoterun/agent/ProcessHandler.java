@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package net.formicary.remoterun.agent.handler;
+package net.formicary.remoterun.agent;
 
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -22,28 +22,23 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import com.google.protobuf.ByteString;
-import net.formicary.remoterun.agent.MessageWriter;
 import net.formicary.remoterun.agent.process.ProcessHelper;
 import net.formicary.remoterun.agent.process.ReadCallback;
 import net.formicary.remoterun.common.proto.RemoteRun;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
-import static net.formicary.remoterun.common.proto.RemoteRun.MasterToAgent.MessageType.*;
+import static net.formicary.remoterun.common.proto.RemoteRun.MasterToAgent.MessageType.RUN_COMMAND;
 
 /**
  * @author Chris Pearson
  */
-@Handler({RUN_COMMAND, STDIN_FRAGMENT, CLOSE_STDIN})
-@Component
-public class ProcessHandler implements MasterToAgentHandler, ReadCallback {
+public class ProcessHandler implements ReadCallback {
   private static final Logger log = LoggerFactory.getLogger(ProcessHandler.class);
   private final Map<Long, ProcessHelper> processes = Collections.synchronizedMap(new TreeMap<Long, ProcessHelper>());
-  private MessageWriter messageWriter;
+  private RemoteRunAgent messageWriter;
 
-  @Override
-  public void handle(RemoteRun.MasterToAgent.MessageType type, RemoteRun.MasterToAgent message, MessageWriter messageWriter) {
+  public void handle(RemoteRun.MasterToAgent message, RemoteRunAgent messageWriter) {
     this.messageWriter = messageWriter;
     long requestId = message.getRequestId();
     if(RUN_COMMAND == message.getMessageType()) {
@@ -69,7 +64,7 @@ public class ProcessHandler implements MasterToAgentHandler, ReadCallback {
       if(processHelper == null) {
         log.warn("Ignoring STDIN fragment for invalid request ID " + requestId);
       } else {
-        processHelper.writeStdIn(message.getStdinFragment().toByteArray());
+        processHelper.writeStdIn(message.getFragment().toByteArray());
       }
 
     } else if(RemoteRun.MasterToAgent.MessageType.CLOSE_STDIN == message.getMessageType()) {

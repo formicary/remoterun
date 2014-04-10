@@ -17,30 +17,30 @@
 package net.formicary.remoterun.examples;
 
 import java.io.BufferedOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
+import net.formicary.remoterun.common.FileStreamer;
 import net.formicary.remoterun.common.proto.RemoteRun;
 import net.formicary.remoterun.embed.AgentConnection;
 import net.formicary.remoterun.embed.AgentConnectionCallback;
 import net.formicary.remoterun.embed.RemoteRunMaster;
-import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static net.formicary.remoterun.common.proto.RemoteRun.AgentToMaster.MessageType.REQUESTED_DATA;
+import static net.formicary.remoterun.common.proto.RemoteRun.AgentToMaster.MessageType.*;
 import static net.formicary.remoterun.common.proto.RemoteRun.MasterToAgent;
 import static net.formicary.remoterun.common.proto.RemoteRun.MasterToAgent.MessageType.REQUEST_DATA;
-import static net.formicary.remoterun.common.proto.RemoteRun.MasterToAgent.RequestData;
 
 /**
+ * Demonstrate sending and receiving data to/from the agent.
+ *
  * @author Chris Pearson
  */
 public class FileServer implements AgentConnectionCallback {
@@ -48,69 +48,52 @@ public class FileServer implements AgentConnectionCallback {
   private static final Logger log = LoggerFactory.getLogger(FileServer.class);
   private static final int PORT = 1222;
   private final AtomicLong atomicLong = new AtomicLong();
-  private final Map<Long, DataRequest> dataRequests = new TreeMap<Long, DataRequest>();
+  private final Map<Long, FileStreamer> dataRequests = new TreeMap<>();
+  private long uploadId;
+  private BufferedOutputStream outputStream;
+  private Path tempFile;
 
   public static void main(String[] args) {
     new FileServer().run();
   }
 
   private void run() {
-    new RemoteRunMaster(Executors.newFixedThreadPool(10), Executors.newFixedThreadPool(10), this).bind(new InetSocketAddress(PORT));
+    new RemoteRunMaster(Executors.newCachedThreadPool(), Executors.newCachedThreadPool(), Executors.newCachedThreadPool(), this).bind(new InetSocketAddress(PORT));
   }
 
   @Override
-  public void agentConnected(AgentConnection agentConnection) {
-    long requestId = atomicLong.incrementAndGet();
-    DataRequest dataRequest = null;
-    try {
-      dataRequest = new DataRequest(requestId);
-      dataRequests.put(requestId, dataRequest);
-      agentConnection.getChannel().write(MasterToAgent.newBuilder()
-        .setRequestId(requestId)
-        .setMessageType(REQUEST_DATA)
-        .setRequestData(RequestData.newBuilder().setFullPath(DEMO_REQUEST_PATH))
-        .build()
-      );
-    } catch(Exception e) {
-      if(dataRequest != null) {
-        dataRequests.remove(requestId);
-        dataRequest.close();
-      }
-      throw new RuntimeException("Failed to process agent connection", e);
-    }
+  public void agentConnected(final AgentConnection agentConnection) {
+    // sending a file
+    uploadId = agentConnection.upload(Paths.get("/var/tmp/test"), "/var/tmp/system.log", null);
   }
 
   @Override
   public void messageReceived(AgentConnection agentConnection, RemoteRun.AgentToMaster message) throws Exception {
-    if(REQUESTED_DATA.equals(message.getMessageType())) {
-      DataRequest dataRequest = dataRequests.get(message.getRequestId());
+    if(message.getMessageType() == RECEIVED_DATA && message.getRequestId() == uploadId) {
+      log.info("Completed receipt of system.log, re-downloading...");
+      // now we've sent a file to the agent, re-download
+
+      // how to initiate a receive from the agent
+      agentConnection.write(MasterToAgent.newBuilder()
+        .setRequestId(RemoteRunMaster.getNextRequestId())
+        .setMessageType(REQUEST_DATA)
+        .setPath("/var/tmp/system.log")
+        .build());
+      tempFile = Files.createTempFile("received_", ".zip");
+      outputStream = new BufferedOutputStream(Files.newOutputStream(tempFile));
+
+    } else if(message.getMessageType() == REQUESTED_DATA) {
+      // receiving a file/finishing
       if(message.hasExitCode()) {
-        dataRequest.close();
-        log.info("Written {}", dataRequest.path);
+        outputStream.close();
+        log.info("Written zip {}", tempFile);
       } else {
-        message.getFragment().writeTo(dataRequest.outputStream);
+        message.getFragment().writeTo(outputStream);
       }
     }
   }
 
   @Override
   public void agentDisconnected(AgentConnection agentConnection) {
-
-  }
-
-  public static class DataRequest {
-    private long id;
-    private Path path;
-    private OutputStream outputStream;
-
-    public DataRequest(long id) throws IOException {
-      this.id = id;
-      this.path = Files.createTempFile("FileServer_Request" + id + "_", ".tmp");
-      this.outputStream = new BufferedOutputStream(Files.newOutputStream(path));
-    }
-
-    public void close() {
-      IOUtils.closeQuietly(outputStream);
-    }
   }
 }

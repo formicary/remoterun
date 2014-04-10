@@ -38,6 +38,8 @@ public class NettyLoggingHandler extends LoggingHandler {
       Object message = ((MessageEvent)e).getMessage();
       if(message instanceof RemoteRun.AgentToMaster) {
         log.debug("{} {}: {}", e.getChannel().toString(), e instanceof DownstreamMessageEvent ? "WRITE" : "RECEIVED", toString((RemoteRun.AgentToMaster)message));
+      } else if(message instanceof RemoteRun.MasterToAgent) {
+        log.debug("{} {}: {}", e.getChannel().toString(), e instanceof DownstreamMessageEvent ? "WRITE" : "RECEIVED", toString((RemoteRun.MasterToAgent)message));
       } else {
         log.debug("{}", e);
       }
@@ -59,6 +61,28 @@ public class NettyLoggingHandler extends LoggingHandler {
     }
     if(message.hasExitReason()) {
       sb.append(" exitReason=").append(message.getExitReason());
+    }
+    return sb.toString();
+  }
+
+  private String toString(RemoteRun.MasterToAgent message) {
+    // todo: is it possible to suppress fragment from protobuf default toString?
+    StringBuilder sb = new StringBuilder();
+    sb.append("messageType=").append(message.getMessageType());
+    if(message.hasRequestId()) {
+      sb.append(" requestId=").append(message.getRequestId());
+    }
+    if(message.hasRunCommand()) {
+      sb.append(" runCommand=").append(message.getRunCommand());
+    }
+    if(message.hasFragment()) {
+      sb.append(" fragment=[").append(message.getFragment().size()).append(" bytes]");
+    }
+    if(message.hasDataSuccess()) {
+      sb.append(" dataSuccess=").append(message.getDataSuccess());
+    }
+    if(message.hasPath()) {
+      sb.append(" path=").append(message.getPath());
     }
     return sb.toString();
   }
