@@ -20,7 +20,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>net.formicary.remoterun</groupId>
   <artifactId>remoterun</artifactId>
-  <version>1.1</version>
+  <version>1.2</version>
   <packaging>pom</packaging>
   <modules>
     <module>common</module>
