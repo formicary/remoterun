@@ -42,6 +42,13 @@
     </license>
   </licenses>
 
+  <scm>
+    <url>https://github.com/formicary/remoterun</url>
+    <connection>scm:git:git://github.com:formicary/remoterun.git</connection>
+    <developerConnection>scm:git:git@github.com:formicary/remoterun.git</developerConnection>
+    <tag>HEAD</tag>
+  </scm>
+
   <distributionManagement>
     <repository>
       <id>formicary-nexus</id>
