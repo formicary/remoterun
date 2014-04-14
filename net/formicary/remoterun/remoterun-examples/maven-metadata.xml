@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <groupId>net.formicary.remoterun</groupId>
+  <artifactId>remoterun-examples</artifactId>
+  <versioning>
+    <versions>
+      <version>1.1-SNAPSHOT</version>
+    </versions>
+    <lastUpdated>20140414124608</lastUpdated>
+  </versioning>
+</metadata>
