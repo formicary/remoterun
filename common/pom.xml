@@ -20,7 +20,7 @@
   <parent>
     <artifactId>remoterun</artifactId>
     <groupId>net.formicary.remoterun</groupId>
-    <version>1.1-SNAPSHOT</version>
+    <version>1.1</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>remoterun-common</artifactId>
@@ -38,7 +38,7 @@
         <artifactId>maven-protoc-plugin</artifactId>
         <version>0.3.2</version>
         <configuration>
-          <protocExecutable>/usr/local/bin/protoc</protocExecutable>
+          <protocExecutable>C:\Program Files (x86)\protoc-2.5.0-win32\protoc.exe</protocExecutable>
         </configuration>
         <executions>
           <execution>
