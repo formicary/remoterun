@@ -38,7 +38,7 @@
         <artifactId>maven-protoc-plugin</artifactId>
         <version>0.3.2</version>
         <configuration>
-          <protocExecutable>C:\Program Files (x86)\protoc-2.5.0-win32\protoc.exe</protocExecutable>
+          <protocExecutable>/usr/local/bin/protoc</protocExecutable>
         </configuration>
         <executions>
           <execution>
