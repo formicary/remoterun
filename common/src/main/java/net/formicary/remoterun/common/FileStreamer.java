@@ -96,8 +96,7 @@ public class FileStreamer implements Runnable {
   @Override
   public void run() {
     try {
-      Map<String, Object> attributes = Files.readAttributes(path, IS_DIRECTORY, LinkOption.NOFOLLOW_LINKS);
-      send(path, Boolean.TRUE.equals(attributes.get(IS_DIRECTORY)) ? path : path.getParent(), zipOutput);
+      send(path, path.getParent(), zipOutput);
       finish(true, null, null);
     } catch(Exception e) {
       finish(false, "Failed to compress and send " + path.toString(), e);

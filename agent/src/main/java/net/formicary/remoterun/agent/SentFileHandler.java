@@ -17,13 +17,14 @@
 package net.formicary.remoterun.agent;
 
 import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.file.*;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.TreeMap;
 
-import com.sun.nio.zipfs.ZipFileSystem;
+import net.formicary.remoterun.common.FileReceiver;
 import net.formicary.remoterun.common.proto.RemoteRun;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static net.formicary.remoterun.common.proto.RemoteRun.MasterToAgent.MessageType.*;
 
@@ -33,42 +34,51 @@ import static net.formicary.remoterun.common.proto.RemoteRun.MasterToAgent.Messa
  * @author Chris Pearson
  */
 public class SentFileHandler {
+  private static final Logger log = LoggerFactory.getLogger(SentFileHandler.class);
   private final Map<Long, ReceivingFile> inProgress = new TreeMap<>();
 
   public void handle(RemoteRun.MasterToAgent message, RemoteRunAgent agent) {
+    log.debug("Handle " + message.getMessageType());
     ReceivingFile receivingFile = null;
     if(message.getMessageType() == SEND_DATA_NOTIFICATION) {
       receivingFile = new ReceivingFile(message.getPath());
       inProgress.put(message.getRequestId(), receivingFile);
-        try {
-          receivingFile.tempFile = Files.createTempFile("received_", ".zip");
-          receivingFile.outputStream = Files.newOutputStream(receivingFile.tempFile);
-        } catch(Exception e) {
-          receivingFile.fail("Failed to create temp directory output stream for " + receivingFile.tempFile + ": " + e.getMessage(), 2);
-        }
+      try {
+        new Thread(receivingFile.receiver = new FileReceiver(Paths.get("."))).start();
+      } catch(Exception e) {
+        receivingFile.fail("Failed to create FileReceiver", e, 2);
+      }
 
     } else if(message.getMessageType() == SEND_DATA_FRAGMENT) {
       receivingFile = inProgress.get(message.getRequestId());
       if(message.hasFragment() && !receivingFile.finished) {
         try {
-          message.getFragment().writeTo(receivingFile.outputStream);
+          message.getFragment().writeTo(receivingFile.receiver.getPipedOutputStream());
         } catch(IOException e) {
-          receivingFile.fail("Failed whilst writing to " + receivingFile.path + ": " + e.getMessage(), 3);
+          receivingFile.fail("Failed whilst writing to " + receivingFile.path, e, 3);
         }
       }
       if(message.hasDataSuccess() && !receivingFile.finished) {
-        if(message.getDataSuccess()) {
-          receivingFile.succeed();
-        } else {
-          receivingFile.fail("Server failed to stream file", 4);
+        try {
+          if(message.getDataSuccess()) {
+            receivingFile.succeed();
+          } else {
+            receivingFile.fail("Server failed to stream file", null, 4);
+          }
+        } catch(Exception e) {
+          receivingFile.fail("Failed to close piped output stream", e, 1);
         }
       }
     }
 
     if(receivingFile != null && !receivingFile.sentResponse && receivingFile.finished) {
-      receivingFile.closeAndUnzip();
-
       receivingFile.sentResponse = true;
+      receivingFile.receiver.waitUntilFinishedUninterruptably();
+      try {
+        receivingFile.receiver.close();
+      } catch(IOException e) {
+        log.trace("Failed to close receiver", e);
+      }
       RemoteRun.AgentToMaster.Builder builder = RemoteRun.AgentToMaster.newBuilder()
         .setRequestId(message.getRequestId())
         .setMessageType(RemoteRun.AgentToMaster.MessageType.RECEIVED_DATA);
@@ -88,8 +98,7 @@ public class SentFileHandler {
     private boolean finished;
     private boolean success;
     private String failureMessage;
-    public Path tempFile;
-    public OutputStream outputStream;
+    public FileReceiver receiver;
 
     public ReceivingFile(String path) {
       this.path = path;
@@ -100,43 +109,12 @@ public class SentFileHandler {
       success = true;
     }
 
-    public void fail(String message, int exitCode) {
+    public void fail(String message, Throwable throwable, int exitCode) {
       finished = true;
       success = false;
-      failureMessage = message;
+      failureMessage = throwable == null ? message : (message + " : " + throwable.toString());
+      log.warn("Failed to unpack " + path, throwable);
       this.exitCode = exitCode;
-    }
-
-    public void closeAndUnzip() {
-      // close output stream
-      try {
-        outputStream.close();
-      } catch(IOException e) {
-        fail("Failed to close output stream " + tempFile + ": " + e.getMessage(), 5);
-        return;
-      }
-
-      // delete the destination path/location
-      Path path = Paths.get(this.path);
-      try {
-        Files.deleteIfExists(path);
-      } catch(Exception e) {
-        fail("Failed to remove existing path " + path + ": " + e.getMessage(), 1);
-        return;
-      }
-      try (FileSystem zipFs = FileSystems.newFileSystem(path, null);
-        DirectoryStream<Path> directoryStream = Files.newDirectoryStream(zipFs.getPath("/"))) {
-        int count = 0;
-        for(Path child : directoryStream) {
-          count++;
-          if (count > 1) break;
-        }
-        if (count > 1) {
-          // directory, unzip
-        }
-      } catch (Exception e) {
-        fail("Failed to unpack " + tempFile + ": " + e.getMessage(), 6);
-      }
     }
   }
 }

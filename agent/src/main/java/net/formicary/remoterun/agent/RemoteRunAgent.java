@@ -22,6 +22,7 @@ import java.nio.file.Paths;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.PreDestroy;
@@ -93,8 +94,7 @@ public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutur
     String hostname = args.length >= 1 ? args[0] : "127.0.0.1";
     int port = args.length >= 2 ? Integer.parseInt(args[1]) : 1081;
     InetSocketAddress serverAddress = new InetSocketAddress(hostname, port);
-    new RemoteRunAgent(Executors.newCachedThreadPool(), Executors.newCachedThreadPool(), Executors.newCachedThreadPool())
-      .connect(serverAddress);
+    new RemoteRunAgent(Executors.newCachedThreadPool(), Executors.newCachedThreadPool(), Executors.newCachedThreadPool()).connect(serverAddress);
   }
 
   public static SSLEngine createSslEngine() {
@@ -191,19 +191,13 @@ public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutur
       }));
 
     } else {
-      writePool.execute(new Runnable() {
-        @Override
-        public void run() {
           if(type == RUN_COMMAND || type == STDIN_FRAGMENT || type == CLOSE_STDIN) {
             processHandler.handle(message, RemoteRunAgent.this);
 
-          } else if (type == SEND_DATA_NOTIFICATION || type == SEND_DATA_FRAGMENT) {
+          } else if(type == SEND_DATA_NOTIFICATION || type == SEND_DATA_FRAGMENT) {
             sentFileHandler.handle(message, RemoteRunAgent.this);
 
           }
-        }
-      });
-
     }
     ctx.sendUpstream(e);
   }
