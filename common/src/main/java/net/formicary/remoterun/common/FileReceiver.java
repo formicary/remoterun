@@ -37,11 +37,14 @@ public class FileReceiver implements Runnable, Closeable {
   private boolean closed = false;
   private boolean finished = false;
   private Throwable failure;
+  private String failureMessage;
+  private final PipedInputStream pipedInputStream;
 
   public FileReceiver(Path root) throws IOException {
     this.root = root;
     pipedOutputStream = new PipedOutputStream();
-    zipInputStream = new ZipInputStream(new PipedInputStream(pipedOutputStream));
+    pipedInputStream = new PipedInputStream(pipedOutputStream);
+    zipInputStream = new ZipInputStream(pipedInputStream);
   }
 
   public PipedOutputStream getPipedOutputStream() {
@@ -66,11 +69,24 @@ public class FileReceiver implements Runnable, Closeable {
       }
       log.warn("Finished receiving");
     } catch(Exception e) {
-      log.warn(entry == null ? "Failed whilst reading zip" : "Failed whilst reading " + entry.getName(), e);
+      failureMessage = entry == null ? "Failed whilst reading zip" : "Failed whilst reading " + entry.getName();
       failure = e;
-    } finally {
-      finished = true;
+      log.warn(failureMessage, e);
     }
+    // the piped streams get unhappy if zipInputStream doesn't read right to the end of the zip - believe there's an
+    // index that doesn't get read
+    try {
+      byte[] buffer = new byte[1024];
+      int read = 0;
+      while(read != -1) {
+        read = pipedInputStream.read(buffer);
+      }
+    } catch(Exception e) {
+      log.trace("Ignoring error reading last of stream", e);
+    }
+    // close the streams, and mark as finished
+    IOUtils.closeQuietly(this);
+    finished = true;
     synchronized(this) {
       notifyAll();
     }
@@ -84,6 +100,22 @@ public class FileReceiver implements Runnable, Closeable {
         log.debug("Ignoring interruption", e);
       }
     }
+  }
+
+  public boolean isFinished() {
+    return finished;
+  }
+
+  public boolean success() {
+    return failure == null;
+  }
+
+  public String getFailureMessage() {
+    return failureMessage;
+  }
+
+  public Throwable getFailure() {
+    return failure;
   }
 
   @Override

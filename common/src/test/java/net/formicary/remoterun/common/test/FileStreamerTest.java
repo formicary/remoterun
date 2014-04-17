@@ -64,6 +64,11 @@ public class FileStreamerTest {
 
         @Override
         public void finished(boolean success, String errorMessage, Throwable cause) {
+          try {
+            fileReceiver.getPipedOutputStream().close();
+          } catch(IOException e) {
+            throw new RuntimeException("Failed to close piped output stream", e);
+          }
           if (!success) {
             log.error("Finished streaming files but failed: " + errorMessage, cause);
           }
@@ -71,6 +76,7 @@ public class FileStreamerTest {
         }
       }).run();
       fileReceiver.waitUntilFinishedUninterruptably();
+      Assert.assertTrue(fileReceiver.success(), fileReceiver.getFailureMessage());
     }
   }
 }
