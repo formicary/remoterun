@@ -23,6 +23,7 @@ import java.util.TreeMap;
 
 import net.formicary.remoterun.common.FileReceiver;
 import net.formicary.remoterun.common.proto.RemoteRun;
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,6 +74,7 @@ public class SentFileHandler {
 
     if(receivingFile != null && !receivingFile.sentResponse && receivingFile.finished) {
       receivingFile.sentResponse = true;
+      IOUtils.closeQuietly(receivingFile.receiver.getPipedOutputStream());
       receivingFile.receiver.waitUntilFinishedUninterruptably();
       try {
         receivingFile.receiver.close();

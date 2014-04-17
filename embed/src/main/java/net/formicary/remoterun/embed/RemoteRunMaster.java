@@ -47,12 +47,10 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
   private static final Logger log = LoggerFactory.getLogger(RemoteRunMaster.class);
   private static final AtomicLong NEXT_REQUEST_ID = new AtomicLong();
   private final Set<AgentConnection> agentConnections = Collections.synchronizedSet(new HashSet<AgentConnection>());
-  private final Executor writePool;
   private final ServerBootstrap bootstrap;
   private AgentConnectionCallback callback;
 
-  public RemoteRunMaster(Executor bossExecutor, Executor workerExecutor, Executor writePool, AgentConnectionCallback callback) {
-    this.writePool = writePool;
+  public RemoteRunMaster(Executor bossExecutor, Executor workerExecutor, AgentConnectionCallback callback) {
     this.callback = callback;
     NioServerSocketChannelFactory factory = new NioServerSocketChannelFactory(bossExecutor, workerExecutor);
     bootstrap = new ServerBootstrap(factory);
@@ -111,28 +109,23 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
 
   @Override
   public void messageReceived(ChannelHandlerContext ctx, final MessageEvent message) throws Exception {
-    final AgentConnection agent = (AgentConnection)ctx.getChannel().getAttachment();
-    writePool.execute(new Runnable() {
-      @Override
-      public void run() {
-        try {
-          callback.messageReceived(agent, (RemoteRun.AgentToMaster)message.getMessage());
-        } catch(Exception e) {
-          String peerDn;
-          try {
-            SSLEngine engine = message.getChannel().getPipeline().get(SslHandler.class).getEngine();
-            X509Certificate peerCertificate = engine.getSession().getPeerCertificateChain()[0];
-            peerDn = peerCertificate.getSubjectDN().toString();
-          } catch(SSLPeerUnverifiedException e1) {
-            log.trace("Unable to extract peer certificate DN", e1);
-            peerDn = "unknown";
-          }
-          String description = message.getChannel().getRemoteAddress() + " (" + peerDn + ")";
-          log.error("Failed to process " + ((RemoteRun.AgentToMaster)message.getMessage()).getMessageType() + " message, closing connection to " + description, e);
-          message.getChannel().close();
-        }
+    AgentConnection agent = (AgentConnection)ctx.getChannel().getAttachment();
+    try {
+      callback.messageReceived(agent, (RemoteRun.AgentToMaster)message.getMessage());
+    } catch(Exception e) {
+      String peerDn;
+      try {
+        SSLEngine engine = message.getChannel().getPipeline().get(SslHandler.class).getEngine();
+        X509Certificate peerCertificate = engine.getSession().getPeerCertificateChain()[0];
+        peerDn = peerCertificate.getSubjectDN().toString();
+      } catch(SSLPeerUnverifiedException e1) {
+        log.trace("Unable to extract peer certificate DN", e1);
+        peerDn = "unknown";
       }
-    });
+      String description = message.getChannel().getRemoteAddress() + " (" + peerDn + ")";
+      log.error("Failed to process " + ((RemoteRun.AgentToMaster)message.getMessage()).getMessageType() + " message, closing connection to " + description, e);
+      message.getChannel().close();
+    }
     ctx.sendUpstream(message);
   }
 

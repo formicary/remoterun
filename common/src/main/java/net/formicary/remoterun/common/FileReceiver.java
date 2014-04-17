@@ -27,6 +27,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * Normal usage of FileReceiver is:
+ * <pre>
+ * receiver = new FileReceiver(Files.createTempFile("received_", ".zip"));
+ * new Thread(receiver).start();
+ * ...
+ * // receiving a file/finishing
+ * if (transferBytesArrive) {
+ *   writeMessageBytesTo(receiver.getPipedOutputStream());
+ * } else if(transferFinishedMessageArrives) {
+ *   IOUtils.closeQuietly(receiver.getPipedOutputStream());
+ *   receiver.waitUntilFinishedUninterruptably();
+ * }
+ * </pre>
+ *
  * @author Chris Pearson
  */
 public class FileReceiver implements Runnable, Closeable {
@@ -116,6 +130,10 @@ public class FileReceiver implements Runnable, Closeable {
 
   public Throwable getFailure() {
     return failure;
+  }
+
+  public Path getRoot() {
+    return root;
   }
 
   @Override

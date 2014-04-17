@@ -16,21 +16,17 @@
 
 package net.formicary.remoterun.examples;
 
-import java.io.BufferedOutputStream;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Map;
-import java.util.TreeMap;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicLong;
 
-import net.formicary.remoterun.common.FileStreamer;
+import net.formicary.remoterun.common.FileReceiver;
 import net.formicary.remoterun.common.proto.RemoteRun;
 import net.formicary.remoterun.embed.AgentConnection;
 import net.formicary.remoterun.embed.AgentConnectionCallback;
 import net.formicary.remoterun.embed.RemoteRunMaster;
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,24 +43,21 @@ public class FileServer implements AgentConnectionCallback {
   private static final String DEMO_REQUEST_PATH = "/var/tmp/test";
   private static final Logger log = LoggerFactory.getLogger(FileServer.class);
   private static final int PORT = 1222;
-  private final AtomicLong atomicLong = new AtomicLong();
-  private final Map<Long, FileStreamer> dataRequests = new TreeMap<>();
   private long uploadId;
-  private BufferedOutputStream outputStream;
-  private Path tempFile;
+  private FileReceiver receiver;
 
   public static void main(String[] args) {
     new FileServer().run();
   }
 
   private void run() {
-    new RemoteRunMaster(Executors.newCachedThreadPool(), Executors.newCachedThreadPool(), Executors.newCachedThreadPool(), this).bind(new InetSocketAddress(PORT));
+    new RemoteRunMaster(Executors.newCachedThreadPool(), Executors.newCachedThreadPool(), this).bind(new InetSocketAddress(PORT));
   }
 
   @Override
   public void agentConnected(final AgentConnection agentConnection) {
     // sending a file
-    uploadId = agentConnection.upload(Paths.get("/var/tmp/test"), "/var/tmp/system.log", null);
+    uploadId = agentConnection.upload(Paths.get(DEMO_REQUEST_PATH), "demopath", null);
   }
 
   @Override
@@ -74,21 +67,26 @@ public class FileServer implements AgentConnectionCallback {
       // now we've sent a file to the agent, re-download
 
       // how to initiate a receive from the agent
+      receiver = new FileReceiver(Files.createTempFile("received_", ".zip"));
+      new Thread(receiver).start();
       agentConnection.write(MasterToAgent.newBuilder()
         .setRequestId(RemoteRunMaster.getNextRequestId())
         .setMessageType(REQUEST_DATA)
         .setPath("/var/tmp/system.log")
         .build());
-      tempFile = Files.createTempFile("received_", ".zip");
-      outputStream = new BufferedOutputStream(Files.newOutputStream(tempFile));
 
     } else if(message.getMessageType() == REQUESTED_DATA) {
       // receiving a file/finishing
       if(message.hasExitCode()) {
-        outputStream.close();
-        log.info("Written zip {}", tempFile);
+        IOUtils.closeQuietly(receiver.getPipedOutputStream());
+        receiver.waitUntilFinishedUninterruptably();
+        if(receiver.success()) {
+          log.info("Written zip {}", receiver.getRoot());
+        } else {
+          log.warn("Failed to write " + receiver.getRoot() + ": " + receiver.getFailureMessage(), receiver.getFailure());
+        }
       } else {
-        message.getFragment().writeTo(outputStream);
+        message.getFragment().writeTo(receiver.getPipedOutputStream());
       }
     }
   }
