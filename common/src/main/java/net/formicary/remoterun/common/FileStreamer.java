@@ -28,7 +28,6 @@ import java.util.zip.ZipOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static java.nio.file.attribute.PosixFilePermission.*;
 import static org.jboss.netty.util.CharsetUtil.UTF_8;
 
 /**
@@ -41,11 +40,6 @@ public class FileStreamer implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(FileStreamer.class);
   private static final String IS_DIRECTORY = "isDirectory";
   private static final String LAST_MODIFIED = "lastModifiedTime";
-  private static final PosixFilePermission[] POSIX_ORDER = {
-    OWNER_READ, OWNER_WRITE, OWNER_EXECUTE,
-    GROUP_READ, GROUP_WRITE, GROUP_EXECUTE,
-    OTHERS_READ, OTHERS_WRITE, OTHERS_EXECUTE
-  };
   private static final int MAX_FRAGMENT_SIZE = 1000000; /*TODO: work out best size*/
   private final Path path;
   private final FileStreamerCallback callback;
@@ -114,17 +108,7 @@ public class FileStreamer implements Runnable {
       // add "<owner> <group> <permissions>" as a UTF-8 string in extra data
       PosixFileAttributeView view = Files.getFileAttributeView(path, PosixFileAttributeView.class);
       PosixFileAttributes posix = view.readAttributes();
-      StringBuilder sb = new StringBuilder();
-      sb.append(posix.owner().getName()).append(' ');
-      sb.append(posix.group().getName()).append(' ');
-      int permissions = 0;
-      for(int i = 1; i <= POSIX_ORDER.length; i++) {
-        if(posix.permissions().contains(POSIX_ORDER[POSIX_ORDER.length - i])) {
-          permissions = permissions | (int)Math.pow(2, i - 1);
-        }
-      }
-      sb.append(Integer.toOctalString(permissions));
-      entry.setExtra(sb.toString().getBytes(UTF_8));
+      entry.setExtra((posix.owner().getName() + ' ' + posix.group().getName() + ' ' + PosixFilePermissions.toString(posix.permissions())).getBytes(UTF_8));
     }
     entry.setTime(lastModifiedTime.toMillis());
     if(!Files.isSameFile(path, relativeTo)) {

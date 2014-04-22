@@ -19,6 +19,9 @@ package net.formicary.remoterun.common;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -73,18 +76,24 @@ public class FileReceiver implements Runnable, Closeable {
     try {
       while((entry = zipInputStream.getNextEntry()) != null) {
         byte[] extraBytes = entry.getExtra();
-        String extraText = extraBytes == null || extraBytes.length == 0 ? null : new String(extraBytes, UTF_8);
+        Set<PosixFilePermission> permissions = extraBytes == null ? null : PosixFilePermissions.fromString(new String(extraBytes, extraBytes.length - 9, 9, UTF_8));
         Path newPath = root.resolve(entry.getName());
         if(entry.isDirectory()) {
           log.debug("Creating directory {}", newPath);
-          Files.createDirectories(newPath);
+          if(permissions == null) {
+            Files.createDirectory(newPath);
+          } else {
+            Files.createDirectory(newPath, PosixFilePermissions.asFileAttribute(permissions));
+          }
         } else {
           int bytesWritten;
           try (OutputStream outputStream = new BufferedOutputStream(Files.newOutputStream(newPath))) {
             bytesWritten = IoUtils.copy(zipInputStream, outputStream);
           }
-          // todo: set file permissions
-          log.debug("Written {} bytes to file {} with permissions={}", bytesWritten, newPath, extraText);
+          if(permissions != null) {
+            Files.setPosixFilePermissions(newPath, permissions);
+          }
+          log.debug("Written {} bytes to file {} with permissions={}", bytesWritten, newPath, extraBytes == null ? null : new String(extraBytes, UTF_8));
         }
       }
       log.debug("Finished receiving");
