@@ -17,6 +17,7 @@
 package net.formicary.remoterun.common;
 
 import java.io.*;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -75,11 +76,15 @@ public class FileReceiver implements Runnable, Closeable {
         String extraText = extraBytes == null || extraBytes.length == 0 ? null : new String(extraBytes, UTF_8);
         Path newPath = root.resolve(entry.getName());
         if(entry.isDirectory()) {
-          log.info("Would create directory {}", newPath);
+          log.debug("Creating directory {}", newPath);
+          Files.createDirectories(newPath);
         } else {
-          ByteArrayOutputStream baos = new ByteArrayOutputStream();
-          IoUtils.copy(zipInputStream, baos);
-          log.info("Would write {} bytes to file {} with permissions={}", baos.toByteArray().length, newPath, extraText);
+          int bytesWritten;
+          try (OutputStream outputStream = new BufferedOutputStream(Files.newOutputStream(newPath))) {
+            bytesWritten = IoUtils.copy(zipInputStream, outputStream);
+          }
+          // todo: set file permissions
+          log.debug("Written {} bytes to file {} with permissions={}", bytesWritten, newPath, extraText);
         }
       }
       log.warn("Finished receiving");

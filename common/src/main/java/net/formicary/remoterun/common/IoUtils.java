@@ -38,11 +38,14 @@ public class IoUtils {
     }
   }
 
-  public static void copy(InputStream inputStream, OutputStream outputStream) throws IOException {
+  public static int copy(InputStream inputStream, OutputStream outputStream) throws IOException {
+    int total = 0;
     byte[] buffer = new byte[BUFFER_SIZE];
     int count;
     while((count = inputStream.read(buffer, 0, BUFFER_SIZE)) != -1) {
       outputStream.write(buffer, 0, count);
+      total += count;
     }
+    return total;
   }
 }
