@@ -87,7 +87,7 @@ public class FileReceiver implements Runnable, Closeable {
           log.debug("Written {} bytes to file {} with permissions={}", bytesWritten, newPath, extraText);
         }
       }
-      log.warn("Finished receiving");
+      log.debug("Finished receiving");
     } catch(Exception e) {
       failureMessage = entry == null ? "Failed whilst reading zip" : "Failed whilst reading " + entry.getName();
       failure = e;

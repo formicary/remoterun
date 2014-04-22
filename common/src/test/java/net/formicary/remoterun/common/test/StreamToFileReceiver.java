@@ -33,8 +33,8 @@ import org.testng.annotations.Test;
 /**
  * @author Chris Pearson
  */
-public class FileStreamerTest {
-  private static final Logger log = LoggerFactory.getLogger(FileStreamerTest.class);
+public class StreamToFileReceiver {
+  private static final Logger log = LoggerFactory.getLogger(StreamToFileReceiver.class);
   private Path tempDirectory;
 
   @BeforeClass
@@ -56,6 +56,9 @@ public class FileStreamerTest {
       fileReceiver.waitUntilFinishedUninterruptably();
       Assert.assertTrue(fileReceiver.success(), fileReceiver.getFailureMessage());
     }
+    Assert.assertTrue(Files.isDirectory(tempDirectory.resolve("example")));
+    Assert.assertTrue(Files.isDirectory(tempDirectory.resolve("example/test/.git")));
+    Assert.assertTrue(Files.isRegularFile(tempDirectory.resolve("example/test/hello.txt")));
   }
 
   @Test
@@ -66,6 +69,7 @@ public class FileStreamerTest {
       fileReceiver.waitUntilFinishedUninterruptably();
       Assert.assertTrue(fileReceiver.success(), fileReceiver.getFailureMessage());
     }
+    Assert.assertTrue(Files.isRegularFile(tempDirectory.resolve("example_directory.zip")));
   }
 
   private static class MyFileStreamerCallback implements FileStreamer.FileStreamerCallback {
