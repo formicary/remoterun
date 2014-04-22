@@ -22,11 +22,11 @@ import java.nio.file.Paths;
 import java.util.concurrent.Executors;
 
 import net.formicary.remoterun.common.FileReceiver;
+import net.formicary.remoterun.common.IoUtils;
 import net.formicary.remoterun.common.proto.RemoteRun;
 import net.formicary.remoterun.embed.AgentConnection;
 import net.formicary.remoterun.embed.AgentConnectionCallback;
 import net.formicary.remoterun.embed.RemoteRunMaster;
-import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,7 +78,7 @@ public class FileServer implements AgentConnectionCallback {
     } else if(message.getMessageType() == REQUESTED_DATA) {
       // receiving a file/finishing
       if(message.hasExitCode()) {
-        IOUtils.closeQuietly(receiver.getPipedOutputStream());
+        IoUtils.closeQuietly(receiver.getPipedOutputStream());
         receiver.waitUntilFinishedUninterruptably();
         if(receiver.success()) {
           log.info("Written zip {}", receiver.getRoot());

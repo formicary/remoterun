@@ -21,7 +21,7 @@ import java.io.InputStream;
 import java.security.KeyStore;
 import javax.net.ssl.*;
 
-import org.apache.commons.io.IOUtils;
+import static net.formicary.remoterun.common.IoUtils.closeQuietly;
 
 /**
  * @author Chris Pearson
@@ -45,7 +45,7 @@ public abstract class KeyStoreUtil {
     } catch(Exception e) {
       throw new RemoteRunException("Failed to create keyStore from " + keyStoreFile, e);
     } finally {
-      IOUtils.closeQuietly(in);
+      closeQuietly(in);
     }
   }
 
@@ -64,7 +64,7 @@ public abstract class KeyStoreUtil {
     } catch(Exception e) {
       throw new RemoteRunException("Failed to create trustStore from " + trustStoreFile, e);
     } finally {
-      IOUtils.closeQuietly(in);
+      closeQuietly(in);
     }
   }
 }

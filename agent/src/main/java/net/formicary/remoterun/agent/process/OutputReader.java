@@ -19,7 +19,7 @@ package net.formicary.remoterun.agent.process;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 
-import org.apache.commons.io.IOUtils;
+import net.formicary.remoterun.common.IoUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,7 +85,7 @@ public class OutputReader extends Thread {
       error = e;
       log.warn("Failed whilst reading stream", e);
     } finally {
-      IOUtils.closeQuietly(stream);
+      IoUtils.closeQuietly(stream);
       callback.finished(serverId);
     }
   }

@@ -25,11 +25,11 @@ import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import org.apache.commons.io.Charsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static java.nio.file.attribute.PosixFilePermission.*;
+import static org.jboss.netty.util.CharsetUtil.UTF_8;
 
 /**
  * A class responsible for reading a file or directory and streaming a series of data chunks to a callback.  If any
@@ -124,7 +124,7 @@ public class FileStreamer implements Runnable {
         }
       }
       sb.append(Integer.toOctalString(permissions));
-      entry.setExtra(sb.toString().getBytes(Charsets.UTF_8));
+      entry.setExtra(sb.toString().getBytes(UTF_8));
     }
     entry.setTime(lastModifiedTime.toMillis());
     if(!Files.isSameFile(path, relativeTo)) {

@@ -20,7 +20,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import org.apache.commons.io.IOUtils;
+import net.formicary.remoterun.common.IoUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
  */
 public class InputWriter extends Thread {
   private static final Logger log = LoggerFactory.getLogger(InputWriter.class);
-  private final LinkedBlockingQueue<byte[]> toWrite = new LinkedBlockingQueue<byte[]>();
+  private final LinkedBlockingQueue<byte[]> toWrite = new LinkedBlockingQueue<>();
   private final OutputStream stream;
   private boolean finished = false;
 
@@ -50,7 +50,7 @@ public class InputWriter extends Thread {
         log.warn("Failed to write to stream, ignoring", e);
       }
     }
-    IOUtils.closeQuietly(stream);
+    IoUtils.closeQuietly(stream);
   }
 
   public void write(byte[] data) {

@@ -21,10 +21,11 @@ import java.nio.file.Path;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import org.apache.commons.io.Charsets;
-import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static net.formicary.remoterun.common.IoUtils.closeQuietly;
+import static org.jboss.netty.util.CharsetUtil.UTF_8;
 
 /**
  * Normal usage of FileReceiver is:
@@ -71,13 +72,13 @@ public class FileReceiver implements Runnable, Closeable {
     try {
       while((entry = zipInputStream.getNextEntry()) != null) {
         byte[] extraBytes = entry.getExtra();
-        String extraText = extraBytes == null || extraBytes.length == 0 ? null : new String(extraBytes, Charsets.UTF_8);
+        String extraText = extraBytes == null || extraBytes.length == 0 ? null : new String(extraBytes, UTF_8);
         Path newPath = root.resolve(entry.getName());
         if(entry.isDirectory()) {
           log.info("Would create directory {}", newPath);
         } else {
           ByteArrayOutputStream baos = new ByteArrayOutputStream();
-          IOUtils.copy(zipInputStream, baos);
+          IoUtils.copy(zipInputStream, baos);
           log.info("Would write {} bytes to file {} with permissions={}", baos.toByteArray().length, newPath, extraText);
         }
       }
@@ -99,7 +100,7 @@ public class FileReceiver implements Runnable, Closeable {
       log.trace("Ignoring error reading last of stream", e);
     }
     // close the streams, and mark as finished
-    IOUtils.closeQuietly(this);
+    closeQuietly(this);
     finished = true;
     synchronized(this) {
       notifyAll();
@@ -139,8 +140,8 @@ public class FileReceiver implements Runnable, Closeable {
   @Override
   public void close() throws IOException {
     if(!closed) {
-      IOUtils.closeQuietly(zipInputStream);
-      IOUtils.closeQuietly(pipedOutputStream);
+      closeQuietly(zipInputStream);
+      closeQuietly(pipedOutputStream);
       closed = true;
     }
   }

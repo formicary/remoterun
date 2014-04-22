@@ -30,9 +30,9 @@ import net.formicary.remoterun.common.proto.RemoteRun;
 import net.formicary.remoterun.embed.AgentConnection;
 import net.formicary.remoterun.embed.AgentConnectionCallback;
 import net.formicary.remoterun.embed.RemoteRunMaster;
-import org.apache.commons.io.Charsets;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.text.StrTokenizer;
+import org.jboss.netty.util.CharsetUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,12 +75,12 @@ public class Server implements AgentConnectionCallback {
   }
 
   public void run() {
-    remoteRunMaster = new RemoteRunMaster(Executors.newCachedThreadPool(), Executors.newCachedThreadPool(), Executors.newCachedThreadPool(), this);
+    remoteRunMaster = new RemoteRunMaster(Executors.newCachedThreadPool(), Executors.newCachedThreadPool(), this);
     InetSocketAddress bindAddress = new InetSocketAddress(1081);
     remoteRunMaster.bind(bindAddress);
 
     try {
-      BufferedReader reader = new BufferedReader(new InputStreamReader(System.in, Charsets.UTF_8));
+      BufferedReader reader = new BufferedReader(new InputStreamReader(System.in, CharsetUtil.UTF_8));
       String line;
       while((line = reader.readLine()) != null) {
         try {

@@ -52,6 +52,7 @@
   <properties>
     <!-- github server selects a "servers" entry from ~/.m2/settings.xml for user/pass -->
     <github.global.server>github</github.global.server>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
   <distributionManagement>
@@ -78,7 +79,7 @@
           </includes>
           <merge>true</merge>
           <repositoryName>remoterun</repositoryName>
-          <repositoryOwner>echinus</repositoryOwner>
+          <repositoryOwner>formicary</repositoryOwner>
         </configuration>
         <executions>
           <!-- run site-maven-plugin's 'site' target as part of the build's normal 'deploy' phase -->
@@ -93,6 +94,7 @@
       <plugin>
         <inherited>true</inherited>
         <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.0</version>
         <configuration>
           <source>1.7</source>
           <target>1.7</target>

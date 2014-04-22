@@ -26,7 +26,7 @@
 
   <!--<logger name="org.apache.mina" level="INFO"/>-->
 
-  <root level="debug">
+  <root level="ALL">
     <appender-ref ref="STDOUT"/>
   </root>
   <logger name="org.springframework" level="WARN"/>
