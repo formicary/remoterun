@@ -20,7 +20,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>net.formicary.remoterun</groupId>
   <artifactId>remoterun</artifactId>
-  <version>1.1-SNAPSHOT</version>
+  <version>1.3-SNAPSHOT</version>
   <packaging>pom</packaging>
   <modules>
     <module>common</module>
@@ -43,56 +43,48 @@
   </licenses>
 
   <scm>
-    <url>https://github.com/echinus/remoterun.git</url>
-    <connection>scm:git:git://github.com/echinus/remoterun.git</connection>
-    <developerConnection>scm:git:git@github.com:echinus/remoterun.git</developerConnection>
+    <url>https://github.com/formicary/remoterun</url>
+    <connection>scm:git:git://github.com:formicary/remoterun.git</connection>
+    <developerConnection>scm:git:git@github.com:formicary/remoterun.git</developerConnection>
     <tag>HEAD</tag>
   </scm>
 
   <properties>
-    <!-- github server selects a "servers" entry from ~/.m2/settings.xml for user/pass -->
-    <github.global.server>github</github.global.server>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
   <distributionManagement>
     <repository>
-      <id>internal.repo</id>
-      <name>Temporary Staging Repository</name>
-      <url>file://${project.build.directory}/mvn-repo</url>
+      <id>formicary-nexus</id>
+      <name>Internal Releases</name>
+      <url>https://nexus.formicary.net/nexus/content/repositories/formicary-releases/</url>
     </repository>
+    <snapshotRepository>
+      <id>formicary-nexus</id>
+      <name>Internal Snapshots</name>
+      <url>https://nexus.formicary.net/nexus/content/repositories/formicary-snapshots/</url>
+    </snapshotRepository>
   </distributionManagement>
 
   <build>
     <plugins>
       <plugin>
-        <groupId>com.github.github</groupId>
-        <artifactId>site-maven-plugin</artifactId>
-        <version>0.9</version>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>2.12</version>
         <configuration>
-          <message>Maven artifacts for ${project.version}</message>
-          <noJekyll>true</noJekyll>
-          <outputDirectory>${project.build.directory}/mvn-repo</outputDirectory>
-          <branch>refs/heads/mvn-repo</branch>
+          <argLine>-Xmx512m -XX:MaxPermSize=92m</argLine>
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
           <includes>
             <include>**/*</include>
           </includes>
-          <merge>true</merge>
-          <repositoryName>remoterun</repositoryName>
-          <repositoryOwner>formicary</repositoryOwner>
         </configuration>
-        <executions>
-          <!-- run site-maven-plugin's 'site' target as part of the build's normal 'deploy' phase -->
-          <execution>
-            <goals>
-              <goal>site</goal>
-            </goals>
-            <phase>deploy</phase>
-          </execution>
-        </executions>
+        <version>2.4</version>
       </plugin>
       <plugin>
-        <inherited>true</inherited>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.0</version>
         <configuration>
