@@ -44,8 +44,8 @@
 
 
   <scm>
-    <connection>scm:git:git@github.com:formicary/remoterun.git</connection>
-    <url>scm:git@github.com:formicary/remoterun</url>
+    <connection>scm:git@github.com:formicary/remoterun.git</connection>
+    <url>scm:git@github.com:formicary/remoterun.git</url>
     <developerConnection>scm:git:git@github.com:formicary/remoterun.git</developerConnection>
   </scm>
 
