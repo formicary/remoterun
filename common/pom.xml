@@ -40,6 +40,12 @@
         <version>0.3.2</version>
         <dependencies>
           <dependency>
+            <groupId>com.google.protobuf.tools</groupId>
+            <artifactId>maven-protoc-plugin</artifactId>
+            <version>0.3.2</version>
+            <type>maven-plugin</type>
+          </dependency>
+          <!--<dependency>
             <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-utils</artifactId>
             <version>3.0.17</version>
@@ -48,7 +54,7 @@
             <groupId>com.google.collections</groupId>
             <artifactId>google-collections</artifactId>
             <version>1.0</version>
-          </dependency>
+          </dependency>-->
         </dependencies>
         <configuration>
           <protocExecutable>/usr/bin/protoc</protocExecutable>
