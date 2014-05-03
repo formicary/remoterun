@@ -43,12 +43,12 @@
   </licenses>
 
 
-<!--  <scm>
-    <url>https://github.com/formicary/remoterun</url>
-    <connection>scm:git:git://github.com:formicary/remoterun.git</connection>
+  <scm>
+    <connection>scm:git:git@github.com:formicary/remoterun.git</connection>
+    <url>scm:git@github.com:formicary/remoterun</url>
     <developerConnection>scm:git:git@github.com:formicary/remoterun.git</developerConnection>
-    <tag>HEAD</tag>
-  </scm>-->
+  </scm>
+
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
