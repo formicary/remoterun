@@ -44,6 +44,11 @@
             <artifactId>plexus-utils</artifactId>
             <version>3.0.17</version>
           </dependency>
+          <dependency>
+            <groupId>com.google.collections</groupId>
+            <artifactId>google-collections</artifactId>
+            <version>1.0</version>
+          </dependency>
         </dependencies>
         <configuration>
           <protocExecutable>/usr/bin/protoc</protocExecutable>
