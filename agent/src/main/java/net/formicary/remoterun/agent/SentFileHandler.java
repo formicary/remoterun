@@ -61,8 +61,10 @@ public class SentFileHandler {
       }
       if(message.hasDataSuccess() && !receivingFile.finished) {
         try {
-          if(message.getDataSuccess()) {
+          if(message.getDataSuccess() && receivingFile.receiver.success()) {
             receivingFile.succeed();
+          } else if (message.getDataSuccess()) {
+            receivingFile.fail(receivingFile.receiver.getFailureMessage(), receivingFile.receiver.getFailure(), 5);
           } else {
             receivingFile.fail("Server failed to stream file", null, 4);
           }
