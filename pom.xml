@@ -42,12 +42,13 @@
     </license>
   </licenses>
 
+
   <scm>
-    <url>https://github.com/formicary/remoterun</url>
-    <connection>scm:git:git://github.com:formicary/remoterun.git</connection>
+    <connection>scm:git@github.com:formicary/remoterun.git</connection>
+    <url>scm:git@github.com:formicary/remoterun.git</url>
     <developerConnection>scm:git:git@github.com:formicary/remoterun.git</developerConnection>
-    <tag>HEAD</tag>
   </scm>
+
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -94,4 +95,12 @@
       </plugin>
     </plugins>
   </build>
+  <dependencies>
+    <dependency>
+      <groupId>com.google.protobuf.tools</groupId>
+      <artifactId>maven-protoc-plugin</artifactId>
+      <version>0.3.2</version>
+      <type>maven-plugin</type>
+    </dependency>
+  </dependencies>
 </project>
