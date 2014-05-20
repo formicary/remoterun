@@ -16,9 +16,8 @@
 
 package net.formicary.remoterun.embed;
 
+import java.net.SocketAddress;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.google.protobuf.ByteString;
@@ -29,6 +28,7 @@ import org.jboss.netty.channel.ChannelFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static net.formicary.remoterun.common.proto.RemoteRun.AgentToMaster.AgentInfo;
 import static net.formicary.remoterun.common.proto.RemoteRun.MasterToAgent.MessageType.*;
 
 /**
@@ -37,12 +37,15 @@ import static net.formicary.remoterun.common.proto.RemoteRun.MasterToAgent.Messa
 public class AgentConnection {
   private static final Logger log = LoggerFactory.getLogger(AgentConnection.class);
   private final ReentrantLock writeLock = new ReentrantLock(true);
+  private final SocketAddress remoteAddress;
   private ChannelFuture lastWriteFuture;
   private Channel channel;
   private ConnectionState connectionState;
+  private AgentInfo agentInfo;
 
   public AgentConnection(Channel channel) {
     this.channel = channel;
+    remoteAddress = channel.getRemoteAddress();
     this.connectionState = ConnectionState.HANDSHAKING;
   }
 
@@ -60,6 +63,18 @@ public class AgentConnection {
 
   public void setConnectionState(ConnectionState connectionState) {
     this.connectionState = connectionState;
+  }
+
+  public SocketAddress getRemoteAddress() {
+    return remoteAddress;
+  }
+
+  public AgentInfo getAgentInfo() {
+    return agentInfo;
+  }
+
+  public void setAgentInfo(AgentInfo agentInfo) {
+    this.agentInfo = agentInfo;
   }
 
   public void shutdown() {
@@ -101,7 +116,7 @@ public class AgentConnection {
           .setMessageType(SEND_DATA_FRAGMENT)
           .setDataSuccess(success)
           .build());
-        if (callback != null) {
+        if(callback != null) {
           callback.uploadComplete(AgentConnection.this, requestId, targetPath, success);
         }
       }
@@ -114,6 +129,8 @@ public class AgentConnection {
     return "AgentConnection{" +
       "channel=" + channel +
       ", connectionState=" + connectionState +
+      ", remoteAddress=" + remoteAddress +
+      ", agentInfo=" + agentInfo +
       '}';
   }
 

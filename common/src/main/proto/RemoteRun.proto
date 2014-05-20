@@ -109,6 +109,7 @@ message AgentToMaster {
   optional bytes fragment = 3;
   optional sint32 exitCode = 4; // -1 means it failed to start
   optional string exitReason = 5; // only supplied if it failed to start
+  optional AgentInfo agentInfo = 6;
 
   enum MessageType {
     /*
@@ -175,5 +176,25 @@ message AgentToMaster {
     (requestId, exitCode [if receiving and finished], exitReason [if failed]) populated
     */
     RECEIVED_DATA = 6;
+
+    /*
+    (agentInfo) populated
+
+    Message #1: Agent to Master
+    AGENT_INFO sent on successful connection by an agent - includes data about the agent that the master can use to
+    allow selection of different agents, deduction of paths, etc.
+    */
+    AGENT_INFO = 7;
   }
+
+  message AgentInfo {
+    optional string hostname = 1;
+    optional bytes ipAddress = 2;
+    repeated StringStringKeyValuePair environment = 3;
+  }
+}
+
+message StringStringKeyValuePair {
+  optional string key = 1;
+  optional string value = 2;
 }

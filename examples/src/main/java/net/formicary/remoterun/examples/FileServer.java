@@ -67,7 +67,7 @@ public class FileServer implements AgentConnectionCallback {
       // now we've sent a file to the agent, re-download
 
       // how to initiate a receive from the agent
-      receiver = new FileReceiver(Files.createTempFile("received_", ".zip"));
+      receiver = new FileReceiver(Files.createTempDirectory("received_"));
       new Thread(receiver).start();
       agentConnection.write(MasterToAgent.newBuilder()
         .setRequestId(RemoteRunMaster.getNextRequestId())
@@ -81,7 +81,7 @@ public class FileServer implements AgentConnectionCallback {
         IoUtils.closeQuietly(receiver.getPipedOutputStream());
         receiver.waitUntilFinishedUninterruptably();
         if(receiver.success()) {
-          log.info("Written zip {}", receiver.getRoot());
+          log.info("Written data to {}", receiver.getRoot());
         } else {
           log.warn("Failed to write " + receiver.getRoot() + ": " + receiver.getFailureMessage(), receiver.getFailure());
         }

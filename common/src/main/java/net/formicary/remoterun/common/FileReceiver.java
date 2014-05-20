@@ -77,13 +77,17 @@ public class FileReceiver implements Runnable, Closeable {
       while((entry = zipInputStream.getNextEntry()) != null) {
         byte[] extraBytes = entry.getExtra();
         Set<PosixFilePermission> permissions = extraBytes == null ? null : PosixFilePermissions.fromString(new String(extraBytes, extraBytes.length - 9, 9, UTF_8));
-        Path newPath = root.resolve(entry.getName());
+        Path newPath = root.resolve(entry.getName()).toAbsolutePath();
         if(entry.isDirectory()) {
-          log.debug("Creating directory {}", newPath);
-          if(permissions == null) {
-            Files.createDirectory(newPath);
+          if (Files.isDirectory(newPath)) {
+            log.debug("Directory {} already exists", newPath);
           } else {
-            Files.createDirectory(newPath, PosixFilePermissions.asFileAttribute(permissions));
+            if(permissions == null) {
+              Files.createDirectories(newPath);
+            } else {
+              Files.createDirectories(newPath, PosixFilePermissions.asFileAttribute(permissions));
+            }
+            log.debug("Created directory {}", newPath);
           }
         } else {
           int bytesWritten;

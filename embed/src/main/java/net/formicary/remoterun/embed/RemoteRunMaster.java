@@ -110,8 +110,12 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
   @Override
   public void messageReceived(ChannelHandlerContext ctx, final MessageEvent message) throws Exception {
     AgentConnection agent = (AgentConnection)ctx.getChannel().getAttachment();
+    RemoteRun.AgentToMaster agentToMaster = (RemoteRun.AgentToMaster)message.getMessage();
+    if (agentToMaster.hasAgentInfo()) {
+      agent.setAgentInfo(agentToMaster.getAgentInfo());
+    }
     try {
-      callback.messageReceived(agent, (RemoteRun.AgentToMaster)message.getMessage());
+      callback.messageReceived(agent, agentToMaster);
     } catch(Exception e) {
       String peerDn;
       try {
@@ -123,7 +127,7 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
         peerDn = "unknown";
       }
       String description = message.getChannel().getRemoteAddress() + " (" + peerDn + ")";
-      log.error("Failed to process " + ((RemoteRun.AgentToMaster)message.getMessage()).getMessageType() + " message, closing connection to " + description, e);
+      log.error("Failed to process " + agentToMaster.getMessageType() + " message, closing connection to " + description, e);
       message.getChannel().close();
     }
     ctx.sendUpstream(message);

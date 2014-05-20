@@ -45,7 +45,7 @@ public class SentFileHandler {
       receivingFile = new ReceivingFile(message.getPath());
       inProgress.put(message.getRequestId(), receivingFile);
       try {
-        new Thread(receivingFile.receiver = new FileReceiver(Paths.get("."))).start();
+        new Thread(receivingFile.receiver = new FileReceiver(Paths.get(message.getPath()))).start();
       } catch(Exception e) {
         receivingFile.fail("Failed to create FileReceiver", e, 2);
       }

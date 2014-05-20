@@ -62,6 +62,25 @@ public class NettyLoggingHandler extends LoggingHandler {
     if(message.hasExitReason()) {
       sb.append(" exitReason=").append(message.getExitReason());
     }
+    if(message.hasAgentInfo()) {
+      RemoteRun.AgentToMaster.AgentInfo a = message.getAgentInfo();
+      sb.append(" agentInfo=[")
+        .append("hostname=").append(a.getHostname())
+        .append(", ip=").append(ipToString(a.getIpAddress().toByteArray()))
+        .append(", ").append(a.getEnvironmentCount()).append(" environment variables]");
+    }
+    return sb.toString();
+  }
+
+  private String ipToString(byte[] bytes) {
+    StringBuilder sb = new StringBuilder();
+    for(int i = 0; i < bytes.length; i++) {
+      byte next = bytes[i];
+      if(i > 0) {
+        sb.append('.');
+      }
+      sb.append(next & 0xff);
+    }
     return sb.toString();
   }
 

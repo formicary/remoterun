@@ -16,13 +16,10 @@
 
 package net.formicary.remoterun.agent;
 
-import java.net.ConnectException;
-import java.net.InetSocketAddress;
+import java.net.*;
 import java.nio.file.Paths;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.PreDestroy;
@@ -42,6 +39,8 @@ import org.jboss.netty.handler.ssl.SslHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static net.formicary.remoterun.common.proto.RemoteRun.AgentToMaster.AgentInfo;
+import static net.formicary.remoterun.common.proto.RemoteRun.AgentToMaster.MessageType.AGENT_INFO;
 import static net.formicary.remoterun.common.proto.RemoteRun.AgentToMaster.MessageType.REQUESTED_DATA;
 import static net.formicary.remoterun.common.proto.RemoteRun.MasterToAgent.MessageType.*;
 
@@ -65,6 +64,7 @@ public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutur
   private ChannelFuture handshakeFuture;
   private Timer timer;
   private ChannelFuture lastWriteFuture;
+  private AgentInfo agentInfo;
 
   public RemoteRunAgent(Executor bossExecutor, Executor workerExecutor, Executor writePool) {
     this.writePool = writePool;
@@ -113,6 +113,22 @@ public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutur
 
   public ChannelFuture connect(InetSocketAddress address) {
     this.address = address;
+    // prepare the information about the local agent's environment for transmission on connection
+    AgentInfo.Builder builder = AgentInfo.newBuilder();
+    try {
+      InetAddress localHost = InetAddress.getLocalHost();
+      builder.setIpAddress(ByteString.copyFrom(localHost.getAddress()));
+      builder.setHostname(localHost.getCanonicalHostName());
+    } catch(UnknownHostException e) {
+      log.debug("Unable to resolve local hostname to IP", e);
+    }
+    Properties properties = System.getProperties();
+    for(Map.Entry<Object, Object> entry : properties.entrySet()) {
+      builder.addEnvironment(RemoteRun.StringStringKeyValuePair.newBuilder()
+        .setKey((String)entry.getKey())
+        .setValue((String)entry.getValue()).build());
+    }
+    this.agentInfo = builder.build();
     ChannelFuture connect = bootstrap.connect(address);
     channel = connect.getChannel();
     return connect;
@@ -133,6 +149,7 @@ public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutur
     if(future.isSuccess()) {
       handshakeFuture = null;
       log.info("Agent SSL handshake completed, connected to " + future.getChannel().getRemoteAddress());
+      write(RemoteRun.AgentToMaster.newBuilder().setMessageType(AGENT_INFO).setAgentInfo(agentInfo).build());
     } else {
       future.getChannel().close();
     }
@@ -191,13 +208,13 @@ public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutur
       }));
 
     } else {
-          if(type == RUN_COMMAND || type == STDIN_FRAGMENT || type == CLOSE_STDIN) {
-            processHandler.handle(message, RemoteRunAgent.this);
+      if(type == RUN_COMMAND || type == STDIN_FRAGMENT || type == CLOSE_STDIN) {
+        processHandler.handle(message, RemoteRunAgent.this);
 
-          } else if(type == SEND_DATA_NOTIFICATION || type == SEND_DATA_FRAGMENT) {
-            sentFileHandler.handle(message, RemoteRunAgent.this);
+      } else if(type == SEND_DATA_NOTIFICATION || type == SEND_DATA_FRAGMENT) {
+        sentFileHandler.handle(message, RemoteRunAgent.this);
 
-          }
+      }
     }
     ctx.sendUpstream(e);
   }
