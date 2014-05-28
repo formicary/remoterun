@@ -32,7 +32,7 @@
 
   <groupId>net.formicary.remoterun</groupId>
   <artifactId>remoterun</artifactId>
-  <version>1.10-SNAPSHOT</version>
+  <version>1.10</version>
   <packaging>pom</packaging>
   <modules>
     <module>common</module>
