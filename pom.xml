@@ -43,7 +43,11 @@
 
   <name>RemoteRun</name>
   <description>Java remote process execution toolkit</description>
-  <url>http://www.formicary.net</url>
+  <organization>
+    <name>Formicary</name>
+    <url>http://www.formicary.net</url>
+  </organization>
+
 
   <licenses>
     <license>
