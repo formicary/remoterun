@@ -18,6 +18,19 @@
 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>net.formicary.maven-parent</groupId>
+    <artifactId>maven-parent</artifactId>
+    <version>1.0.1</version>
+  </parent>
+
+  <scm>
+    <connection>scm:git@github.com:formicary/remoterun.git</connection>
+    <url>scm:git@github.com:formicary/remoterun.git</url>
+    <developerConnection>scm:git:git@github.com:formicary/remoterun.git</developerConnection>
+  </scm>
+
   <groupId>net.formicary.remoterun</groupId>
   <artifactId>remoterun</artifactId>
   <version>1.3-SNAPSHOT</version>
@@ -41,14 +54,6 @@
       <comments>A business-friendly OSS license</comments>
     </license>
   </licenses>
-
-
-  <scm>
-    <connection>scm:git@github.com:formicary/remoterun.git</connection>
-    <url>scm:git@github.com:formicary/remoterun.git</url>
-    <developerConnection>scm:git:git@github.com:formicary/remoterun.git</developerConnection>
-  </scm>
-
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
