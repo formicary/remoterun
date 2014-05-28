@@ -101,6 +101,7 @@
       <artifactId>maven-protoc-plugin</artifactId>
       <version>0.3.2</version>
       <type>maven-plugin</type>
+      <scope>build</scope>
     </dependency>
   </dependencies>
 </project>
