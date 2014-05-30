@@ -104,13 +104,4 @@
       </plugin>
     </plugins>
   </build>
-  <dependencies>
-    <dependency>
-      <groupId>com.google.protobuf.tools</groupId>
-      <artifactId>maven-protoc-plugin</artifactId>
-      <version>0.3.2</version>
-      <type>maven-plugin</type>
-      <scope>build</scope>
-    </dependency>
-  </dependencies>
 </project>
