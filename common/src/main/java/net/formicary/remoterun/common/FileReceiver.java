@@ -82,15 +82,14 @@ public class FileReceiver implements Runnable, Closeable {
           if (Files.isDirectory(newPath)) {
             log.debug("Directory {} already exists", newPath);
           } else {
-            if(permissions == null) {
-              Files.createDirectories(newPath);
-            } else {
-              Files.createDirectories(newPath, PosixFilePermissions.asFileAttribute(permissions));
-            }
-            log.debug("Created directory {}", newPath);
+            createDirectoriesWithPermissions(permissions, newPath);
           }
         } else {
           int bytesWritten;
+          Path parentPath = newPath.getParent();
+          if (!Files.exists(parentPath)){
+            createDirectoriesWithPermissions(permissions, parentPath);
+          }
           try (OutputStream outputStream = new BufferedOutputStream(Files.newOutputStream(newPath))) {
             bytesWritten = IoUtils.copy(zipInputStream, outputStream);
           }
@@ -123,6 +122,15 @@ public class FileReceiver implements Runnable, Closeable {
     synchronized(this) {
       notifyAll();
     }
+  }
+
+  private void createDirectoriesWithPermissions(Set<PosixFilePermission> permissions, Path newPath) throws IOException {
+    if(permissions == null) {
+      Files.createDirectories(newPath);
+    } else {
+      Files.createDirectories(newPath, PosixFilePermissions.asFileAttribute(permissions));
+    }
+    log.debug("Created directory {}", newPath);
   }
 
   public synchronized void waitUntilFinishedUninterruptably() {
