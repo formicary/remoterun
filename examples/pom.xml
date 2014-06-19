@@ -19,7 +19,7 @@
   <parent>
     <artifactId>remoterun</artifactId>
     <groupId>net.formicary.remoterun</groupId>
-    <version>1.16</version>
+    <version>1.17-SNAPSHOT</version>
   </parent>
   <name>RemoteRun Example</name>
   <modelVersion>4.0.0</modelVersion>
