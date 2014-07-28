@@ -51,4 +51,17 @@
       </binaries>
     </moduleSet>
   </moduleSets>
+  <fileSets>
+    <fileSet>
+      <!-- agent script -->
+      <directory>src/main/resources</directory>
+      <outputDirectory>bin</outputDirectory>
+      <fileMode>0755</fileMode>
+      <lineEnding>unix</lineEnding>
+      <filtered>true</filtered>
+      <includes>
+        <include>remoterun-agent.sh</include>
+      </includes>
+    </fileSet>
+  </fileSets>
 </assembly>

@@ -51,4 +51,17 @@
       </binaries>
     </moduleSet>
   </moduleSets>
+  <fileSets>
+    <fileSet>
+      <!-- agent script -->
+      <directory>src/main/resources</directory>
+      <outputDirectory>bin</outputDirectory>
+      <fileMode>0644</fileMode>
+      <lineEnding>windows</lineEnding>
+      <filtered>true</filtered>
+      <includes>
+        <include>remoterun-agent.cmd</include>
+      </includes>
+    </fileSet>
+  </fileSets>
 </assembly>
