@@ -47,8 +47,7 @@
               <appendAssemblyId>false</appendAssemblyId>
               <finalName>remoterun-${project.version}</finalName>
               <descriptors>
-                <descriptor>src/main/assembly/assembly-unix.xml</descriptor>
-                <descriptor>src/main/assembly/assembly-windows.xml</descriptor>
+                <descriptor>src/main/assembly/assembly.xml</descriptor>
               </descriptors>
             </configuration>
           </execution>
