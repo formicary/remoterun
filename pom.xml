@@ -39,6 +39,7 @@
     <module>agent</module>
     <module>embed</module>
     <module>examples</module>
+    <module>dist</module>
   </modules>
 
   <name>RemoteRun</name>
