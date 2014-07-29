@@ -46,4 +46,27 @@
       <scope>runtime</scope>
     </dependency>
   </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>default-jar</id>
+            <phase>package</phase>
+            <configuration>
+              <archive>
+                <index>false</index>
+                <manifest>
+                  <mainClass>net.formicary.remoterun.agent.RemoteRunAgent</mainClass>
+                  <addClasspath>true</addClasspath>
+                  <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                </manifest>
+              </archive>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>
