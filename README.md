@@ -7,28 +7,30 @@ RemoteRun is a project created because I couldn't find any suitable alternative 
 resorting to SSH etc which is often unavailable to processes in larger (specifically financial) organisations.  Remote
 services are generally permitted if deployed and managed appropriately, but SSH keys etc are often not.  There are
 various options available but all seem to be overly complicated, so remoterun is aimed at literally permitting execution
-of a remote command and nothing more.  This doesn't prohibit file transfers either: cat is your friend.
+of a remote command, permitting file transfers to/from an agent, and nothing more complex.
 
 RemoteRun may be desirable when one or more of the following apply:
 
 + a large Java application (e.g. webserver) wants to fork sub-processes, and duplicating the memory footprint is an
-  issue
-+ you need to run processes on another server
+  issue (Runtime.exec forks, and fork duplicates the memory footprint of the current process)
++ you need to run processes on another server or as another user
 
 The idea is that you:
 
-+ embed an instance of net.formicary.remoterun.embed.RemoteRunMaster in your application which listens for agent connections
 + on servers you want to run applications you start a net.formicary.remoterun.agent.RemoteRunAgent instance
++ embed an instance of net.formicary.remoterun.embed.RemoteRunMaster in your application which listens for agent
+  connections and issues commands to the agents
 
 remoterun requires SSL client authentication: I wanted a way of running services without usernames/passwords but with
 some form of authentication.  So the keystores are password protected, and this must be specified as a system property.
-It doesn't currently use CRLs unless any of the JDK implementations automatically do that (which I think they probably
-do).
+It doesn't explicitly use CRLs unless any of the JDK implementations automatically do that.
 
 ## Running the example
 
-The recommended way to get started with remoterun is to run the example then have a look at NettyServer for use in your
-application.  There is a bundled example service in net.formicary.remoterun.examples.Server.  To run it:
+The recommended way to get started with remoterun is to run the example then have a look at
+examples/src/main/java/net/formicary/remoterun/examples/FileServer.java to adapt for use in your
+application.  There is a bundled example command line interface service in net.formicary.remoterun.examples.Server.
+To run it:
 
 + Generate SSL certificates by running ssl/certs.sh
 + run net.formicary.remoterun.examples.Server
