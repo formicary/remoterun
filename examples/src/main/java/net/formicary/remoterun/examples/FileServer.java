@@ -86,7 +86,7 @@ public class FileServer implements AgentConnectionCallback {
           log.warn("Failed to write " + receiver.getRoot() + ": " + receiver.getFailureMessage(), receiver.getFailure());
         }
       } else {
-        message.getFragment().writeTo(receiver.getPipedOutputStream());
+        receiver.getPipedOutputStream().write(message.getFragment().toByteArray());
       }
     }
   }
