@@ -19,7 +19,7 @@
   <parent>
     <artifactId>remoterun</artifactId>
     <groupId>net.formicary.remoterun</groupId>
-    <version>1.19-SNAPSHOT</version>
+    <version>1.19</version>
   </parent>
   <name>RemoteRun Agent</name>
   <modelVersion>4.0.0</modelVersion>
