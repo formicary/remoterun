@@ -54,7 +54,7 @@ public class SentFileHandler {
       receivingFile = inProgress.get(message.getRequestId());
       if(message.hasFragment() && !receivingFile.finished) {
         try {
-          receivingFile.receiver.getPipedOutputStream().write(message.getFragment().toByteArray());
+          message.getFragment().writeTo(receivingFile.receiver.getPipedOutputStream());
         } catch(IOException e) {
           receivingFile.fail("Failed whilst writing to " + receivingFile.path, e, 3);
         }
