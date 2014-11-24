@@ -90,9 +90,15 @@ public class ProcessHandler implements ReadCallback {
     if(processHelper != null && processHelper.isFinished()) {
       ProcessHelper process = processes.remove(serverId);
       if(process != null) {
-        messageWriter.write(RemoteRun.AgentToMaster.newBuilder().setMessageType(RemoteRun.AgentToMaster.MessageType.EXITED)
-          .setRequestId(serverId)
-          .setExitCode(processHelper.getProcess().exitValue()).build());
+        RemoteRun.AgentToMaster.Builder msgBuilder = RemoteRun.AgentToMaster.newBuilder()
+          .setMessageType(RemoteRun.AgentToMaster.MessageType.EXITED)
+          .setRequestId(serverId);
+        try {
+          msgBuilder.setExitCode(processHelper.getProcess().waitFor());
+        } catch(InterruptedException e) {
+          log.error("Interrupted whilst waiting for process exit code", e);
+        }
+        messageWriter.write(msgBuilder.build());
       }
     }
   }
