@@ -95,15 +95,6 @@
           <target>${jdk.version}</target>
         </configuration>
       </plugin>
-      <plugin>
-        <artifactId>maven-jar-plugin</artifactId>
-        <configuration>
-          <includes>
-            <include>**/*</include>
-          </includes>
-        </configuration>
-        <version>2.4</version>
-      </plugin>
       <!-- To force the release-plugin to increment the poms plugin change has been made.
       http://stackoverflow.com/questions/15166781/mvn-releaseprepare-not-committing-changes-to-pom-xml
        -->
