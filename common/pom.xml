@@ -25,6 +25,10 @@
   <modelVersion>4.0.0</modelVersion>
   <artifactId>remoterun-common</artifactId>
 
+  <properties>
+    <!-- mvn clean compile -DprotocExecutable=/usr/local/bin/protoc -->
+    <protocExecutable>/usr/bin/protoc</protocExecutable>
+  </properties>
   <pluginRepositories>
     <pluginRepository>
       <id>protoc-plugin</id>
@@ -55,7 +59,7 @@
           </dependency>
         </dependencies>
         <configuration>
-          <protocExecutable>/usr/bin/protoc</protocExecutable>
+          <protocExecutable>${protocExecutable}</protocExecutable>
         </configuration>
         <executions>
           <execution>
