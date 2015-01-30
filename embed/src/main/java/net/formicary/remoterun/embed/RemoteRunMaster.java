@@ -203,7 +203,7 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
 
   @Override
   public String toString() {
-    return "NettyServer{" +
+    return "RemoteRunMaster{" +
       "agentConnections=" + agentConnections +
       ", bootstrap=" + bootstrap +
       ", callback=" + callback +
