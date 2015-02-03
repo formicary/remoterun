@@ -191,6 +191,7 @@ message AgentToMaster {
     optional string hostname = 1;
     optional bytes ipAddress = 2;
     repeated StringStringKeyValuePair environment = 3;
+    repeated StringStringKeyValuePair systemProperty = 4;
   }
 }
 

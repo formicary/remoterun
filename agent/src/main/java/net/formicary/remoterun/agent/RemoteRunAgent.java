@@ -117,13 +117,19 @@ public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutur
     try {
       InetAddress localHost = InetAddress.getLocalHost();
       builder.setIpAddress(ByteString.copyFrom(localHost.getAddress()));
-      builder.setHostname(localHost.getCanonicalHostName());
+      builder.setHostname(localHost.getHostName());
     } catch(UnknownHostException e) {
       log.debug("Unable to resolve local hostname to IP", e);
     }
+    Map<String, String> environment = System.getenv();
+    for(Map.Entry<String, String> entry : environment.entrySet()) {
+      builder.addEnvironment(RemoteRun.StringStringKeyValuePair.newBuilder()
+        .setKey(entry.getKey())
+        .setValue(entry.getValue()).build());
+    }
     Properties properties = System.getProperties();
     for(Map.Entry<Object, Object> entry : properties.entrySet()) {
-      builder.addEnvironment(RemoteRun.StringStringKeyValuePair.newBuilder()
+      builder.addSystemProperty(RemoteRun.StringStringKeyValuePair.newBuilder()
         .setKey((String)entry.getKey())
         .setValue((String)entry.getValue()).build());
     }
