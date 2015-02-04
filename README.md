@@ -88,7 +88,7 @@ Using maven you need this in your pom.xml:
       <dependency>
         <groupId>net.formicary.remoterun</groupId>
         <artifactId>remoterun-embed</artifactId>
-        <version>1.0</version>
+        <version>2.9</version>
       </dependency>
     </dependencies>
 
@@ -102,6 +102,42 @@ Using maven you need this in your pom.xml:
         </snapshots>
       </repository>
     </repositories>
+
+The simplest way to get started is not to call the RemoteRunMaster class directly but instead in your spring (or
+similar) configuration:
+
+    @Bean
+    @Autowired
+    @Lazy(false)
+    public SimpleRemoteRun remoteRun(@Value("${remoterun.listen.host:}") String host, @Value("${remoterun.listen.port:1081}") int port, AgentConnectionCallback callback) {
+      InetSocketAddress bindAddress = host == null || host.length() == 0 ? new InetSocketAddress(port) : new InetSocketAddress(host, port);
+      return SimpleRemoteRun.start(bindAddress, new AgentStateFactory<AgentCallback>() {
+        @Override
+        public AgentCallback newConnection(AgentConnection connection) {
+          return new MyImplementationOfAgentCallback(/* could pass connection in here */);
+        }
+      });
+    }
+
+Then you need to implement the AgentCallback interface and make the agents do what you want:
+
+    public class MyImplementationOfAgentCallback implements AgentCallback {
+      @Override
+      public void messageReceived(AgentConnection agentConnection, RemoteRun.AgentToMaster message) throws Exception {
+        if (message.getMessageType() == RemoteRun.AgentToMaster.MessageType.AGENT_INFO) {
+          // Do something on establishment of connection
+        } else {
+          // Do something when a message is received
+        }
+      }
+
+      @Override
+      public void close(AgentConnection agentConnection) throws Exception {
+        // Do something when an agent disconnects
+      }
+    }
+
+To send a message to an agent, you can use the established connections held in SimpleRemoteRun:
 
 ## Licensing
 
