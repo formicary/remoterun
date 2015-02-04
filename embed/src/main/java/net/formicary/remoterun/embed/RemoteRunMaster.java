@@ -96,8 +96,8 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
   }
 
   public void bind(InetSocketAddress address) {
-    bootstrap.bind(address);
-    log.info("Listening for connections on " + address.toString());
+    Channel channel = bootstrap.bind(address);
+    log.info("Listening for connections on " + channel.getLocalAddress());
   }
 
   @Override
