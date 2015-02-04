@@ -242,7 +242,9 @@ public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutur
       if(lastWriteFuture != null) {
         lastWriteFuture.awaitUninterruptibly();
       }
-      lastWriteFuture = channel.write(message);
+      if(channel != null) {
+        lastWriteFuture = channel.write(message);
+      }
     } finally {
       writeLock.unlock();
     }
@@ -250,10 +252,15 @@ public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutur
 
   @Override
   public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-    if(ctx.getChannel().getRemoteAddress() != null) {
-      log.info("Disconnected from " + ctx.getChannel().getRemoteAddress());
+    writeLock.lock();
+    try {
+      if(ctx.getChannel().getRemoteAddress() != null) {
+        log.info("Disconnected from " + ctx.getChannel().getRemoteAddress());
+      }
+      channel = null;
+    } finally {
+      writeLock.unlock();
     }
-    channel = null;
     ctx.sendUpstream(e);
     if(!shutdown) {
       timer = new Timer();
