@@ -3,11 +3,16 @@ By Chris Pearson <christopher.pearson at formicary.net>
 
 ## Introduction
 
-RemoteRun is a project created because I couldn't find any suitable alternative for running processes remotely without
-resorting to SSH etc which is often unavailable to processes in larger (specifically financial) organisations.  Remote
-services are generally permitted if deployed and managed appropriately, but SSH keys etc are often not.  There are
-various options available but all seem to be overly complicated, so remoterun is aimed at literally permitting execution
-of a remote command, permitting file transfers to/from an agent, and nothing more complex.
+RemoteRun is a Java library enabling you to spawn child processes with minimum memory footprint, optionally on another
+host.  A call to Runtime.exec() duplicates the memory footprint of the host process, which can be prohibitive.  By
+running a lightweight "agent" and using that to spawn new processes we avoid the pain of creating new processes, and
+gain the ability to run processes on other hosts too.
+
+Using remoterun means you don't need to resort to SSH etc which is often poorly supported in Java and unavailable to
+processes in larger (specifically financial) organisations.  Remote services are generally permitted if deployed and
+managed appropriately, but SSH keys etc are often not.  There are various options available but all seem to be overly
+complicated, so remoterun is aimed at literally permitting execution of a remote command, permitting file transfers
+to/from an agent, and nothing more complex.
 
 RemoteRun may be desirable when one or more of the following apply:
 
@@ -15,14 +20,14 @@ RemoteRun may be desirable when one or more of the following apply:
   issue (Runtime.exec forks, and fork duplicates the memory footprint of the current process)
 + you need to run processes on another server or as another user
 
-The idea is that you:
+The idea is that:
 
 + on servers you want to run applications you start a net.formicary.remoterun.agent.RemoteRunAgent instance
-+ embed an instance of net.formicary.remoterun.embed.RemoteRunMaster in your application which listens for agent
-  connections and issues commands to the agents
++ you embed an instance of net.formicary.remoterun.embed.RemoteRunMaster in your application which listens for agent
+  connections and lets you issue commands to the agents
 
-remoterun requires SSL client authentication: I wanted a way of running services without usernames/passwords but with
-some form of authentication.  So the keystores are password protected, and this must be specified as a system property.
+remoterun requires SSL client authentication: no usernames/passwords but a bi-directional certificate trust.  So the
+keystores can be password protected, and this must be specified as a system property.
 It doesn't explicitly use CRLs unless any of the JDK implementations automatically do that.
 
 ## Using RemoteRun in your own application
@@ -51,49 +56,85 @@ Using maven you need this in your pom.xml:
 SSL certificates are mandatory.  To generate them run ssl/certs.sh or use some other means.  RemoteRun uses the java
 support for Java Key Store format or PKCS12 (.pfx) format certificate/trust stores.
 
-The simplest way to get started is not to call the RemoteRunMaster class directly but instead in your spring (or
-similar) configuration use SimpleRemoteRun as follows:
+The simplest way to get started with the code is to take a look at
+/examples/src/main/java/net/formicary/remoterun/examples/SimpleRemoteRunMaster.java
+
+To use it yourself without any immediate behaviour when an agent connects:
 
     @Bean(destroyMethod = "shutdown")
     @Autowired
     @Lazy(false)
-    public SimpleRemoteRun remoteRun(@Value("${remoterun.listen.host:}") String host, @Value("${remoterun.listen.port:1081}") int port, AgentConnectionCallback callback) {
+    public RemoteRunMaster remoteRun(@Value("${remoterun.listen.host:}") String host, @Value("${remoterun.listen.port:1081}") int port, final BeanFactory beanFactory) {
+      RemoteRunMaster master = new RemoteRunMaster();
       InetSocketAddress bindAddress = host == null || host.length() == 0 ? new InetSocketAddress(port) : new InetSocketAddress(host, port);
-      return SimpleRemoteRun.start(bindAddress, new AgentStateFactory<MyImplementationOfAgentCallback>() {
-        @Override
-        public MyImplementationOfAgentCallback newConnection(AgentConnection connection) {
-          return new MyImplementationOfAgentCallback(connection);
-        }
-      });
+      master.bind(bindAddress);
+      return master;
     }
 
-Then you need to implement the AgentCallback interface and make the agents do what you want:
+If you want to have agents do something on connection, you can change the above to create the RemoteRunMaster as
+follows:
 
-    public class MyImplementationOfAgentCallback implements AgentCallback {
+    RemoteRunMaster master = new RemoteRunMaster(new AgentConnectionCallback() {
+      @Override
+      public void agentConnected(AgentConnection agentConnection) {
+      }
+
       @Override
       public void messageReceived(AgentConnection agentConnection, RemoteRun.AgentToMaster message) throws Exception {
-        if (message.getMessageType() == RemoteRun.AgentToMaster.MessageType.AGENT_INFO) {
-          // Do something on establishment of connection
-        } else {
-          // Do something when a message is received
-        }
       }
 
       @Override
-      public void close(AgentConnection agentConnection) throws Exception {
-        // Do something when an agent disconnects
+      public void agentDisconnected(AgentConnection agentConnection) {
       }
+    });
+
+To obtain the list of connected agents at a later point, you can use RemoteRunMaster.getConnectedClients:
+
+    for(AgentConnection connection : master.getConnectedClients()) {
     }
 
-To send a message to an agent, you can use the established connections held in SimpleRemoteRun:
+Once you have an AgentConnection object, you can run a command on an agent as follows:
 
-    for(AgentConnection connection : simpleRemoteRun.getAgents().keySet()) {
-      connection.write(RemoteRun.MasterToAgent.newBuilder()
-        .setMessageType(RUN_COMMAND)
-        .setRequestId(RemoteRunMaster.getNextRequestId())
-        .setRunCommand(RemoteRun.MasterToAgent.RunCommand.newBuilder().setCmd("echo").addArgs("Thanks for connecting!"))
-        .build());
-    }
+    RemoteRun.MasterToAgent.Builder command = MessageHelper.runCommand("/bin/echo", "Hello World!");
+    TextOutputCallback callback = new TextOutputCallback() {
+      @Override
+      public void onStdOut(String line) {
+        // called for each line of stdout
+      }
+
+      @Override
+      public void onStdErr(String line) {
+        // called for each line of stderr
+      }
+
+      @Override
+      public void onExit(int exitCode, String exitReason) {
+        // called when process has exited and all stdout/stderr has been processed
+      }
+    };
+    TextOutputRequest request = new TextOutputRequest(command, callback);
+    // Note that there are a couple of other constructors in TextOutputRequest including max line length and charset
+    // These default to 4096 and UTF-8 respectively.
+    connection.request(request);
+
+To send a file or directory to the agent:
+
+    connection.upload(sourcePath, targetRootDirectory, new UploadCompleteCallback() {
+      @Override
+      public void uploadComplete(AgentConnection agent, long requestId, String targetPath, boolean success) {
+        // do something on upload completion
+      }
+    });
+
+To request a file or directory from the agent:
+
+    connection.download(remoteSource, targetRootDirectory, new FileDownloadCallback() {
+      @Override
+      public void onExit(int exitCode, String exitReason) {
+        // do something on download completion
+      }
+    }));
+
 
 ## System Properties
 
@@ -109,11 +150,9 @@ remoterun at your key / trusted certificate stores.
  + javax.net.ssl.trustStoreType - JKS (Java Key Store) or PKCS12, defaults to JKS
  + javax.net.ssl.trustStorePassword - keystore password, defaults to "123456"
 
-## Running the examples
+## Running the example server
 
-A recommended way to get started with remoterun is to run the example then have a look at
-examples/src/main/java/net/formicary/remoterun/examples/FileServer.java to adapt for use in your
-application.  There is a bundled example command line interface service in net.formicary.remoterun.examples.Server.
+There is a bundled example command line interface service in net.formicary.remoterun.examples.Server.
 To run it:
 
 + Generate SSL certificates by running ssl/certs.sh

@@ -14,16 +14,17 @@
  * limitations under the License.
  */
 
-package net.formicary.remoterun.embed.simple;
-
-import net.formicary.remoterun.common.proto.RemoteRun;
-import net.formicary.remoterun.embed.AgentConnection;
+package net.formicary.remoterun.embed.callback;
 
 /**
  * @author Chris Pearson
  */
-public interface AgentCallback {
-  public void messageReceived(AgentConnection agentConnection, RemoteRun.AgentToMaster message) throws Exception;
-
-  public void close(AgentConnection agentConnection) throws Exception;
+public interface FileDownloadCallback {
+  /**
+   * The process has exited - no more data to follow.
+   *
+   * @param exitCode 0 means success, anything else is a failure
+   * @param exitReason could be null - if not any additional message to accompany an error
+   */
+  void onExit(int exitCode, String exitReason);
 }

@@ -47,7 +47,7 @@ public class FileStreamer implements Runnable {
   private boolean finished = false;
 
   public FileStreamer(Path path, final FileStreamerCallback callback) {
-    this.path = path;
+    this.path = path.toAbsolutePath();
     this.callback = callback;
     BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(new OutputStream() {
       @Override
@@ -62,6 +62,7 @@ public class FileStreamer implements Runnable {
 
       @Override
       public void close() throws IOException {
+        log.debug("Closed");
       }
     }, MAX_FRAGMENT_SIZE);
     zipOutput = new ZipOutputStream(bufferedOutputStream);

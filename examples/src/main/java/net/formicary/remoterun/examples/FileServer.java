@@ -25,7 +25,7 @@ import net.formicary.remoterun.common.FileReceiver;
 import net.formicary.remoterun.common.IoUtils;
 import net.formicary.remoterun.common.proto.RemoteRun;
 import net.formicary.remoterun.embed.AgentConnection;
-import net.formicary.remoterun.embed.AgentConnectionCallback;
+import net.formicary.remoterun.embed.callback.AgentConnectionCallback;
 import net.formicary.remoterun.embed.RemoteRunMaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

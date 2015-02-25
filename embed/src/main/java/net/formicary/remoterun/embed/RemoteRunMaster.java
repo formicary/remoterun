@@ -18,7 +18,9 @@ package net.formicary.remoterun.embed;
 
 import java.net.InetSocketAddress;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.net.ssl.*;
 import javax.security.cert.X509Certificate;
@@ -27,6 +29,7 @@ import net.formicary.remoterun.common.KeyStoreUtil;
 import net.formicary.remoterun.common.NettyLoggingHandler;
 import net.formicary.remoterun.common.RemoteRunException;
 import net.formicary.remoterun.common.proto.RemoteRun;
+import net.formicary.remoterun.embed.callback.AgentConnectionCallback;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
@@ -46,10 +49,33 @@ import org.slf4j.LoggerFactory;
 public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutureListener {
   private static final Logger log = LoggerFactory.getLogger(RemoteRunMaster.class);
   private static final AtomicLong NEXT_REQUEST_ID = new AtomicLong();
-  private final Set<AgentConnection> agentConnections = Collections.synchronizedSet(new HashSet<AgentConnection>());
+  private final Set<AgentConnection> agentConnections = new CopyOnWriteArraySet<>();
   private final ServerBootstrap bootstrap;
   private AgentConnectionCallback callback;
 
+  /**
+   * The same as new RemoteRunMaster(Executors.newCachedThreadPool(), Executors.newCachedThreadPool(), null).
+   */
+  public RemoteRunMaster() {
+    this(null);
+  }
+
+  /**
+   * The same as new RemoteRunMaster(Executors.newCachedThreadPool(), Executors.newCachedThreadPool(), callback).
+   */
+  public RemoteRunMaster(AgentConnectionCallback callback) {
+    this(Executors.newCachedThreadPool(), Executors.newCachedThreadPool(), callback);
+  }
+
+  /**
+   * Creates a new RemoteRunMaster.
+   *
+   * @param bossExecutor the {@link Executor} which will execute the boss threads, see
+   * {@link org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory(Executor, Executor)}
+   * @param workerExecutor the {@link Executor} which will execute the I/O worker threads, see
+   * {@link org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory(Executor, Executor)}
+   * @param callback optional callback when agents connect/send messages
+   */
   public RemoteRunMaster(Executor bossExecutor, Executor workerExecutor, AgentConnectionCallback callback) {
     this.callback = callback;
     NioServerSocketChannelFactory factory = new NioServerSocketChannelFactory(bossExecutor, workerExecutor);
@@ -79,6 +105,14 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
     return NEXT_REQUEST_ID.getAndIncrement();
   }
 
+  public AgentConnectionCallback getCallback() {
+    return callback;
+  }
+
+  public void setCallback(AgentConnectionCallback callback) {
+    this.callback = callback;
+  }
+
   public static SSLEngine createSslEngine() {
     try {
       SSLContext sslContext = SSLContext.getInstance("TLSv1.1");
@@ -95,9 +129,16 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
     }
   }
 
-  public void bind(InetSocketAddress address) {
+  /**
+   * Bind and return the bound address.
+   *
+   * @param address socket address to bind to
+   * @return where the socket was bound - useful to determine random port if a port of 0 was passed in
+   */
+  public InetSocketAddress bind(InetSocketAddress address) {
     Channel channel = bootstrap.bind(address);
     log.info("Listening for connections on " + channel.getLocalAddress());
+    return (InetSocketAddress)channel.getLocalAddress();
   }
 
   @Override
@@ -111,10 +152,11 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
   public void messageReceived(ChannelHandlerContext ctx, final MessageEvent message) throws Exception {
     AgentConnection agent = (AgentConnection)ctx.getChannel().getAttachment();
     RemoteRun.AgentToMaster agentToMaster = (RemoteRun.AgentToMaster)message.getMessage();
-    if (agentToMaster.hasAgentInfo()) {
+    if(agentToMaster.hasAgentInfo()) {
       agent.setAgentInfo(agentToMaster.getAgentInfo());
     }
     try {
+      agent.messageReceived(agent, agentToMaster);
       callback.messageReceived(agent, agentToMaster);
     } catch(Exception e) {
       String peerDn;
@@ -183,14 +225,18 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
   }
 
   public void shutdown() {
-    synchronized(agentConnections) {
-      for(AgentConnection agentConnection : agentConnections) {
-        agentConnection.shutdown();
-      }
+    for(AgentConnection agentConnection : agentConnections) {
+      agentConnection.shutdown();
     }
     bootstrap.shutdown();
+
   }
 
+  /**
+   * Get a new copy of a collection containing all the actively connected clients.
+   *
+   * @return a fresh list, can be modified as you wish
+   */
   public Collection<AgentConnection> getConnectedClients() {
     List<AgentConnection> result = new ArrayList<>();
     for(AgentConnection agentConnection : agentConnections) {

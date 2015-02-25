@@ -21,63 +21,71 @@ import java.net.InetSocketAddress;
 import net.formicary.remoterun.common.proto.RemoteRun;
 import net.formicary.remoterun.embed.AgentConnection;
 import net.formicary.remoterun.embed.RemoteRunMaster;
-import net.formicary.remoterun.embed.simple.AgentCallback;
-import net.formicary.remoterun.embed.simple.AgentStateFactory;
-import net.formicary.remoterun.embed.simple.SimpleRemoteRun;
+import net.formicary.remoterun.embed.request.TextOutputRequest;
+import net.formicary.remoterun.embed.callback.AbstractTextOutputCallback;
+import net.formicary.remoterun.embed.callback.AgentConnectionCallback;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import static net.formicary.remoterun.common.proto.RemoteRun.AgentToMaster.MessageType.AGENT_INFO;
 import static net.formicary.remoterun.common.proto.RemoteRun.MasterToAgent.MessageType.RUN_COMMAND;
+import static net.formicary.remoterun.embed.request.MessageHelper.runCommand;
 
 /**
- * Simple demonstration of the SimpleRemoteRun class.
+ * Simple demonstration of the TextOutputRequest class.
  * Starts a server that causes any agents to echo hello world, then quits after 15 seconds, again making the agents
  * execute a command.
  *
  * @author Chris Pearson
  */
-public class SimpleRemoteRunClient implements AgentCallback {
-  private final AgentConnection connection;
-
-  public SimpleRemoteRunClient(AgentConnection connection) {
-    this.connection = connection;
-  }
+public class SimpleRemoteRunMaster implements AgentConnectionCallback {
+  private static final Logger log = LoggerFactory.getLogger(SimpleRemoteRunMaster.class);
 
   public static void main(String[] args) {
+    new SimpleRemoteRunMaster().run();
+  }
+
+  private void run() {
     // initialise remoterun
-    SimpleRemoteRun<SimpleRemoteRunClient> simpleRemoteRun = SimpleRemoteRun.start(new InetSocketAddress(1081), new AgentStateFactory<SimpleRemoteRunClient>() {
-      @Override
-      public SimpleRemoteRunClient newConnection(AgentConnection connection) {
-        return new SimpleRemoteRunClient(connection);
-      }
-    });
-    // wait 15 seconds, then send a message to all connected agents
+    RemoteRunMaster master = new RemoteRunMaster(this);
+    master.bind(new InetSocketAddress(1081));
+    // wait 15 seconds
     try {
       Thread.sleep(15000);
     } catch(InterruptedException ignored) {
     }
-    for(AgentConnection connection : simpleRemoteRun.getAgents().keySet()) {
+    // run a command on all connected clients
+    for(AgentConnection connection : master.getConnectedClients()) {
       connection.write(RemoteRun.MasterToAgent.newBuilder()
         .setMessageType(RUN_COMMAND)
         .setRequestId(RemoteRunMaster.getNextRequestId())
         .setRunCommand(RemoteRun.MasterToAgent.RunCommand.newBuilder().setCmd("echo").addArgs("Thanks for connecting!"))
         .build());
     }
-    // now quit
-    simpleRemoteRun.shutdown();
+    // wait 1 second
+    try {
+      Thread.sleep(1000);
+    } catch(InterruptedException ignored) {
+    }
+    log.info("Shutting down SimpleRemoteRunMaster");
+    master.shutdown();
+  }
+
+  @Override
+  public void agentConnected(final AgentConnection agentConnection) {
+    // as soon as an agent connects, run a command
+    agentConnection.request(new TextOutputRequest(runCommand("echo", "Hello World!"), new AbstractTextOutputCallback() {
+      // nothing overridden because we don't actually want to do anything with the command - pretty unusual, we'd
+      // normally want to check at least the exit code to check if it succeeded or failed
+    }));
   }
 
   @Override
   public void messageReceived(AgentConnection agentConnection, RemoteRun.AgentToMaster message) throws Exception {
-    if(message.getMessageType() == AGENT_INFO) {
-      agentConnection.write(RemoteRun.MasterToAgent.newBuilder()
-        .setMessageType(RUN_COMMAND)
-        .setRequestId(RemoteRunMaster.getNextRequestId())
-        .setRunCommand(RemoteRun.MasterToAgent.RunCommand.newBuilder().setCmd("echo").addArgs("Hello World!"))
-        .build());
-    }
+    // nothing needs doing here
   }
 
   @Override
-  public void close(AgentConnection agentConnection) throws Exception {
+  public void agentDisconnected(AgentConnection agentConnection) {
+    // nothing needs doing here
   }
 }

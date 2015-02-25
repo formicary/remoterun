@@ -18,11 +18,17 @@ package net.formicary.remoterun.embed;
 
 import java.net.SocketAddress;
 import java.nio.file.Path;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.google.protobuf.ByteString;
 import net.formicary.remoterun.common.FileStreamer;
 import net.formicary.remoterun.common.proto.RemoteRun;
+import net.formicary.remoterun.embed.callback.FileDownloadCallback;
+import net.formicary.remoterun.embed.callback.UploadCompleteCallback;
+import net.formicary.remoterun.embed.request.AgentRequest;
+import net.formicary.remoterun.embed.request.FileDownloadRequest;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.slf4j.Logger;
@@ -37,6 +43,7 @@ import static net.formicary.remoterun.common.proto.RemoteRun.MasterToAgent.Messa
 public class AgentConnection {
   private static final Logger log = LoggerFactory.getLogger(AgentConnection.class);
   private final ReentrantLock writeLock = new ReentrantLock(true);
+  private final Map<Long, AgentRequest> requestHandlers = new ConcurrentHashMap<>();
   private final SocketAddress remoteAddress;
   private ChannelFuture lastWriteFuture;
   private Channel channel;
@@ -77,6 +84,9 @@ public class AgentConnection {
     this.agentInfo = agentInfo;
   }
 
+  /**
+   * Disconnect this agent.
+   */
   public void shutdown() {
     channel.close();
   }
@@ -84,19 +94,19 @@ public class AgentConnection {
   /**
    * Initiate the upload of a file from master to agent.
    *
-   * @param sourcePath path to read and send on this host
-   * @param targetPath where to try and store the data on the target
+   * @param localSourcePath path to read and send on this host
+   * @param remoteTargetDirectory where to try and store the data on the target
    * @param callback callback when the send is complete, can be null
    * @return unique request ID
    */
-  public long upload(Path sourcePath, final String targetPath, final UploadCompleteCallback callback) {
+  public long upload(Path localSourcePath, final String remoteTargetDirectory, final UploadCompleteCallback callback) {
     final long requestId = RemoteRunMaster.getNextRequestId();
     write(RemoteRun.MasterToAgent.newBuilder()
       .setRequestId(requestId)
       .setMessageType(SEND_DATA_NOTIFICATION)
-      .setPath(targetPath)
+      .setPath(remoteTargetDirectory)
       .build());
-    new FileStreamer(sourcePath, new FileStreamer.FileStreamerCallback() {
+    new FileStreamer(localSourcePath, new FileStreamer.FileStreamerCallback() {
       @Override
       public void writeDataChunk(byte[] data, int offset, int length) {
         write(RemoteRun.MasterToAgent.newBuilder()
@@ -109,7 +119,7 @@ public class AgentConnection {
       @Override
       public void finished(boolean success, String errorMessage, Throwable cause) {
         if(!success) {
-          log.error("Failed to send data to " + getChannel().getRemoteAddress() + " - targetPath=" + targetPath, cause);
+          log.error("Failed to send data to " + getChannel().getRemoteAddress() + " - remoteTargetDirectory=" + remoteTargetDirectory, cause);
         }
         write(RemoteRun.MasterToAgent.newBuilder()
           .setRequestId(requestId)
@@ -117,11 +127,15 @@ public class AgentConnection {
           .setDataSuccess(success)
           .build());
         if(callback != null) {
-          callback.uploadComplete(AgentConnection.this, requestId, targetPath, success);
+          callback.uploadComplete(AgentConnection.this, requestId, remoteTargetDirectory, success);
         }
       }
     }).run();
     return requestId;
+  }
+
+  public long download(String remoteSourcePath, Path localTargetDirectory, FileDownloadCallback callback) {
+    return request(new FileDownloadRequest(remoteSourcePath, localTargetDirectory, callback));
   }
 
   @Override
@@ -134,6 +148,20 @@ public class AgentConnection {
       '}';
   }
 
+  public long request(AgentRequest message) {
+    RemoteRun.MasterToAgent msg = message.getMessage();
+    if(!msg.hasRequestId()) {
+      throw new RuntimeException("Invalid message - requestId is not set: " + message);
+    }
+    requestHandlers.put(msg.getRequestId(), message);
+    write(msg);
+    return msg.getRequestId();
+  }
+
+  /**
+   * Transmit a message that has already been given a unique request ID, and commit to handling the responses yourself
+   * with the AgentConnectionCallback registered.
+   */
   public void write(RemoteRun.MasterToAgent message) {
     // fair write lock to ensure every thread gets a chance to write data, and avoid a single thread hogging the writes
     // if write buffer is full, only one thread will be within the write/waitUntilWriteable call
@@ -152,7 +180,13 @@ public class AgentConnection {
     }
   }
 
-  public static interface UploadCompleteCallback {
-    void uploadComplete(AgentConnection agent, long requestId, String targetPath, boolean success);
+  public void messageReceived(AgentConnection agent, RemoteRun.AgentToMaster message) {
+    if(message.hasRequestId()) {
+      AgentRequest handler = requestHandlers.get(message.getRequestId());
+      if(handler != null) {
+        handler.receivedMessage(agent, message);
+      }
+    }
   }
+
 }

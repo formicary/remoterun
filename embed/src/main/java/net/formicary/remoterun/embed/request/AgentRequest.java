@@ -14,13 +14,20 @@
  * limitations under the License.
  */
 
-package net.formicary.remoterun.embed.simple;
+package net.formicary.remoterun.embed.request;
 
+import java.util.concurrent.CountDownLatch;
+
+import net.formicary.remoterun.common.proto.RemoteRun;
 import net.formicary.remoterun.embed.AgentConnection;
 
 /**
-* @author Chris Pearson
-*/
-public interface AgentStateFactory<A extends AgentCallback> {
-  public A newConnection(AgentConnection connection);
+ * @author Chris Pearson
+ */
+public interface AgentRequest {
+  RemoteRun.MasterToAgent getMessage();
+
+  CountDownLatch getCompletionLatch();
+
+  void receivedMessage(AgentConnection agent, RemoteRun.AgentToMaster message);
 }

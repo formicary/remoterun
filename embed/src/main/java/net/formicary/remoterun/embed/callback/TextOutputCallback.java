@@ -14,17 +14,24 @@
  * limitations under the License.
  */
 
-package net.formicary.remoterun.embed;
-
-import net.formicary.remoterun.common.proto.RemoteRun;
+package net.formicary.remoterun.embed.callback;
 
 /**
  * @author Chris Pearson
  */
-public interface AgentConnectionCallback {
-  void agentConnected(AgentConnection agentConnection);
+public interface TextOutputCallback {
+  /**
+   * A line of data has been received from stdout.
+   */
+  void onStdOut(String line);
 
-  void messageReceived(AgentConnection agentConnection, RemoteRun.AgentToMaster message) throws Exception;
+  /**
+   * A line of data has been received from stderr.
+   */
+  void onStdErr(String line);
 
-  void agentDisconnected(AgentConnection agentConnection);
+  /**
+   * The process has exited - no more data to follow.
+   */
+  void onExit(int exitCode, String exitReason);
 }

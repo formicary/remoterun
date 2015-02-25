@@ -59,10 +59,14 @@ public class FileReceiver implements Runnable, Closeable {
   private String failureMessage;
   private final PipedInputStream pipedInputStream;
 
-  public FileReceiver(Path root) throws IOException {
+  public FileReceiver(Path root) {
     this.root = root;
     pipedOutputStream = new PipedOutputStream();
-    pipedInputStream = new PipedInputStream(pipedOutputStream);
+    try {
+      pipedInputStream = new PipedInputStream(pipedOutputStream);
+    } catch(IOException e) {
+      throw new RuntimeException("Failed to hook up piped input/output streams", e);
+    }
     zipInputStream = new ZipInputStream(pipedInputStream);
   }
 
