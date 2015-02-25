@@ -19,16 +19,12 @@
   <parent>
     <artifactId>remoterun</artifactId>
     <groupId>net.formicary.remoterun</groupId>
-    <version>2.9-SNAPSHOT</version>
+    <version>3.0.0-SNAPSHOT</version>
   </parent>
   <name>RemoteRun Common</name>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>remoterun-common</artifactId>
 
-  <properties>
-    <!-- mvn clean compile -DprotocExecutable=/usr/local/bin/protoc -->
-    <protocExecutable>/usr/bin/protoc</protocExecutable>
-  </properties>
   <pluginRepositories>
     <pluginRepository>
       <id>protoc-plugin</id>
