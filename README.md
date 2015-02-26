@@ -38,20 +38,9 @@ Using maven you need this in your pom.xml:
       <dependency>
         <groupId>net.formicary.remoterun</groupId>
         <artifactId>remoterun-embed</artifactId>
-        <version>2.9</version>
+        <version>3.0.0</version>
       </dependency>
     </dependencies>
-
-    <repositories>
-      <repository>
-        <id>remoterun-mvn-repo</id>
-        <url>https://raw.github.com/formicary/remoterun/mvn-repo/</url>
-        <snapshots>
-          <enabled>true</enabled>
-          <updatePolicy>always</updatePolicy>
-        </snapshots>
-      </repository>
-    </repositories>
 
 SSL certificates are mandatory.  To generate them run ssl/certs.sh or use some other means.  RemoteRun uses the java
 support for Java Key Store format or PKCS12 (.pfx) format certificate/trust stores.
@@ -60,6 +49,11 @@ The simplest way to get started with the code is to take a look at
 /examples/src/main/java/net/formicary/remoterun/examples/SimpleRemoteRunMaster.java
 
 To use it yourself without any immediate behaviour when an agent connects:
+
+    RemoteRunMaster master = new RemoteRunMaster(/* optionally specify on-connect callback */);
+    master.bind(bindAddress);
+
+An annotation driven Spring bean provision of the above might look like this:
 
     @Bean(destroyMethod = "shutdown")
     @Autowired
