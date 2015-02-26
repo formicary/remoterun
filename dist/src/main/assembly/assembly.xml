@@ -69,15 +69,22 @@
   </moduleSets>
   <fileSets>
     <fileSet>
-      <!-- agent script -->
+      <!-- agent scripts -->
       <directory>src/main/resources</directory>
       <outputDirectory>bin</outputDirectory>
       <fileMode>0755</fileMode>
       <lineEnding>unix</lineEnding>
       <filtered>true</filtered>
       <includes>
-        <include>remoterun-agent.cmd</include>
         <include>remoterun-agent.sh</include>
+      </includes>
+    </fileSet>
+    <fileSet>
+      <directory>src/main/resources</directory>
+      <outputDirectory>bin</outputDirectory>
+      <filtered>true</filtered>
+      <includes>
+        <include>remoterun-agent.cmd</include>
       </includes>
     </fileSet>
   </fileSets>

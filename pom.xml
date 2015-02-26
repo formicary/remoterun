@@ -20,10 +20,9 @@
   <modelVersion>4.0.0</modelVersion>
 
   <scm>
-    <connection>scm:git@github.com:formicary/remoterun.git</connection>
-    <url>scm:git@github.com:formicary/remoterun.git</url>
-    <developerConnection>scm:git:git@github.com:formicary/remoterun.git</developerConnection>
-    <tag>HEAD</tag>
+    <url>https://github.com/formicary/remoterun</url>
+    <connection>scm:git:github.com:formicary/remoterun.git</connection>
+    <developerConnection>scm:git:github.com:formicary/remoterun.git</developerConnection>
   </scm>
 
   <groupId>net.formicary.remoterun</groupId>
@@ -54,6 +53,24 @@
     </license>
   </licenses>
 
+  <developers>
+    <developer>
+      <name>Christopher Pearson</name>
+      <email>christopher.pearson@formicary.net</email>
+      <organization>Formicary Ltd</organization>
+    </developer>
+    <developer>
+      <name>John Gavin</name>
+      <email>john.gavin@formicary.net</email>
+      <organization>Formicary Ltd</organization>
+    </developer>
+    <developer>
+      <name>Oliver Cooley</name>
+      <email>oliver.cooley@formicary.net</email>
+      <organization>Formicary Ltd</organization>
+    </developer>
+  </developers>
+
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <jdk.version>1.7</jdk.version>
@@ -61,30 +78,9 @@
     <protocExecutable>/usr/bin/protoc</protocExecutable>
   </properties>
 
-  <distributionManagement>
-    <repository>
-      <id>formicary-nexus</id>
-      <name>Internal Releases</name>
-      <url>https://nexus.formicary.net/nexus/content/repositories/formicary-releases/</url>
-    </repository>
-    <snapshotRepository>
-      <id>formicary-nexus</id>
-      <name>Internal Snapshots</name>
-      <url>https://nexus.formicary.net/nexus/content/repositories/formicary-snapshots/</url>
-    </snapshotRepository>
-  </distributionManagement>
-
   <build>
     <plugins>
       <plugin>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>2.12</version>
-        <configuration>
-          <argLine>-Xmx512m -XX:MaxPermSize=92m</argLine>
-        </configuration>
-      </plugin>
-      <plugin>
-        <inherited>true</inherited>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.1</version>
         <configuration>
@@ -96,7 +92,6 @@
       http://stackoverflow.com/questions/15166781/mvn-releaseprepare-not-committing-changes-to-pom-xml
        -->
       <plugin>
-        <inherited>false</inherited>
         <artifactId>maven-release-plugin</artifactId>
         <version>2.4.2</version>
         <dependencies>
@@ -111,21 +106,23 @@
         </configuration>
       </plugin>
     </plugins>
-
     <pluginManagement>
       <plugins>
         <plugin>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>2.12</version>
+        </plugin>
+        <plugin>
+          <artifactId>maven-deploy-plugin</artifactId>
+          <version>2.8.1</version>
+        </plugin>
+        <plugin>
           <artifactId>maven-source-plugin</artifactId>
-          <version>2.1.2</version>
-          <executions>
-            <execution>
-              <id>attach-sources</id>
-              <phase>verify</phase>
-              <goals>
-                <goal>jar-no-fork</goal>
-              </goals>
-            </execution>
-          </executions>
+          <version>2.2.1</version>
+        </plugin>
+        <plugin>
+          <artifactId>maven-javadoc-plugin</artifactId>
+          <version>2.9.1</version>
         </plugin>
       </plugins>
     </pluginManagement>
