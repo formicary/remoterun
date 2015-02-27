@@ -21,8 +21,8 @@
 
   <scm>
     <url>https://github.com/formicary/remoterun</url>
-    <connection>scm:git:github.com:formicary/remoterun.git</connection>
-    <developerConnection>scm:git:github.com:formicary/remoterun.git</developerConnection>
+    <connection>scm:git:git@github.com:formicary/remoterun.git</connection>
+    <developerConnection>scm:git:git@github.com:formicary/remoterun.git</developerConnection>
   </scm>
 
   <groupId>net.formicary.remoterun</groupId>
