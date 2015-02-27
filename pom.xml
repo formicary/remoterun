@@ -101,9 +101,6 @@
             <version>1.8.1</version>
           </dependency>
         </dependencies>
-        <configuration>
-          <arguments>-DprotocExecutable=${protocExecutable}</arguments>
-        </configuration>
       </plugin>
     </plugins>
     <pluginManagement>
