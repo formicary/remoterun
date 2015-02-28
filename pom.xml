@@ -39,6 +39,7 @@
 
   <name>RemoteRun</name>
   <description>Java remote process execution toolkit</description>
+  <url>https://github.com/formicary/remoterun</url>
   <organization>
     <name>Formicary</name>
     <url>http://www.formicary.net</url>
