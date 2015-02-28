@@ -20,6 +20,7 @@
   <id>dist</id>
   <formats>
     <format>zip</format>
+    <format>tar.gz</format>
   </formats>
   <baseDirectory>remoterun-${project.version}</baseDirectory>
 
