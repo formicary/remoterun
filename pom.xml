@@ -70,6 +70,11 @@
       <email>oliver.cooley@formicary.net</email>
       <organization>Formicary Ltd</organization>
     </developer>
+    <developer>
+      <name>Siegfried Hodgson</name>
+      <email>siegfried.hodgson@formicary.net</email>
+      <organization>Formicary Ltd</organization>
+    </developer>
   </developers>
 
   <properties>
