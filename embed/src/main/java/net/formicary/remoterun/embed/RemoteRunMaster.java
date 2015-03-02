@@ -157,7 +157,9 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
     }
     try {
       agent.messageReceived(agent, agentToMaster);
-      callback.messageReceived(agent, agentToMaster);
+      if(callback != null) {
+        callback.messageReceived(agent, agentToMaster);
+      }
     } catch(Exception e) {
       String peerDn;
       try {
