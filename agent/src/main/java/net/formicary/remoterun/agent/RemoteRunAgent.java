@@ -20,6 +20,7 @@ import java.net.*;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.PreDestroy;
@@ -68,32 +69,61 @@ public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutur
   public RemoteRunAgent(Executor bossExecutor, Executor workerExecutor, Executor writePool) {
     this.writePool = writePool;
     bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(bossExecutor, workerExecutor));
-    bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
-      @Override
-      public ChannelPipeline getPipeline() throws Exception {
-        return Channels.pipeline(
-          new SslHandler(createSslEngine()),
+    boolean success = false;
+    try {
+      bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
+        @Override
+        public ChannelPipeline getPipeline() throws Exception {
+          return Channels.pipeline(
+            new SslHandler(createSslEngine()),
 
-          new LengthFieldBasedFrameDecoder(1048576, 0, 4, 0, 4),
-          new LengthFieldPrepender(4),
+            new LengthFieldBasedFrameDecoder(1048576, 0, 4, 0, 4),
+            new LengthFieldPrepender(4),
 
-          new ProtobufDecoder(RemoteRun.MasterToAgent.getDefaultInstance()),
-          new ProtobufEncoder(),
+            new ProtobufDecoder(RemoteRun.MasterToAgent.getDefaultInstance()),
+            new ProtobufEncoder(),
 
-          new NettyLoggingHandler(),
-          RemoteRunAgent.this
-        );
+            new NettyLoggingHandler(),
+            RemoteRunAgent.this
+          );
+        }
+      });
+      bootstrap.setOption("tcpNoDelay", true);
+      bootstrap.setOption("keepAlive", true);
+      success = true;
+    } finally {
+      // in case of failure initialising the pipeline ensure we shut down the NIO factory etc
+      if(!success) {
+        bootstrap.shutdown();
       }
-    });
-    bootstrap.setOption("tcpNoDelay", true);
-    bootstrap.setOption("keepAlive", true);
+    }
   }
 
   public static void main(String[] args) {
     String hostname = args.length >= 1 ? args[0] : "127.0.0.1";
     int port = args.length >= 2 ? Integer.parseInt(args[1]) : 1081;
     InetSocketAddress serverAddress = new InetSocketAddress(hostname, port);
-    new RemoteRunAgent(Executors.newCachedThreadPool(), Executors.newCachedThreadPool(), Executors.newFixedThreadPool(1)).connect(serverAddress);
+    ExecutorService tp1 = Executors.newCachedThreadPool();
+    ExecutorService tp2 = Executors.newFixedThreadPool(1);
+    RemoteRunAgent agent = null;
+    boolean success = false;
+    try {
+      agent = new RemoteRunAgent(tp1, tp1, tp2);
+      agent.connect(serverAddress);
+      success = true;
+    } finally {
+      if(!success) {
+        tp1.shutdown();
+        tp2.shutdown();
+        if(agent != null) {
+          agent.shutdown();
+        }
+      }
+    }
+  }
+
+  private void close() {
+
   }
 
   public static SSLEngine createSslEngine() {
