@@ -158,7 +158,8 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
       agent.setAgentInfo(agentToMaster.getAgentInfo());
       agent.setConnectionState(CONNECTED);
       String description = agent.getChannel().getRemoteAddress() + " (" + getPeerDn(message.getChannel()) + ")";
-      log.info("Agent connection complete from " + description + ": " + agentToMaster.getAgentInfo());
+      log.info("Agent connection complete from " + description);
+      log.debug("Agent information: {}", agentToMaster.getAgentInfo());
       if(callback != null) {
         try {
           callback.agentConnected(agent);
@@ -209,7 +210,7 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
   public void operationComplete(ChannelFuture future) throws Exception {
     if(future.isSuccess()) {
       AgentConnection connection = (AgentConnection)future.getChannel().getAttachment();
-      connection.setConnectionState (PENDING_AGENTINFO);
+      connection.setConnectionState(PENDING_AGENTINFO);
       SSLEngine engine = future.getChannel().getPipeline().get(SslHandler.class).getEngine();
       X509Certificate peerCertificate = engine.getSession().getPeerCertificateChain()[0];
       String description = future.getChannel().getRemoteAddress() + " (" + peerCertificate.getSubjectDN().toString() + ")";
