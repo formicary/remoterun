@@ -41,6 +41,8 @@ import org.jboss.netty.handler.ssl.SslHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static net.formicary.remoterun.embed.ConnectionState.*;
+
 /**
  * Create a RemoteRunMaster then call {@link #bind} to start a TCP server to listen for agent connections.
  *
@@ -154,6 +156,17 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
     RemoteRun.AgentToMaster agentToMaster = (RemoteRun.AgentToMaster)message.getMessage();
     if(agentToMaster.hasAgentInfo()) {
       agent.setAgentInfo(agentToMaster.getAgentInfo());
+      agent.setConnectionState(CONNECTED);
+      String description = agent.getChannel().getRemoteAddress() + " (" + getPeerDn(message.getChannel()) + ")";
+      log.info("Agent connection complete from " + description + ": " + agentToMaster.getAgentInfo());
+      if(callback != null) {
+        try {
+          callback.agentConnected(agent);
+        } catch(Exception e) {
+          log.error("Failed to process connected callback, closing connection to " + description, e);
+          agent.shutdown();
+        }
+      }
     }
     try {
       agent.messageReceived(agent, agentToMaster);
@@ -161,20 +174,24 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
         callback.messageReceived(agent, agentToMaster);
       }
     } catch(Exception e) {
-      String peerDn;
-      try {
-        SSLEngine engine = message.getChannel().getPipeline().get(SslHandler.class).getEngine();
-        X509Certificate peerCertificate = engine.getSession().getPeerCertificateChain()[0];
-        peerDn = peerCertificate.getSubjectDN().toString();
-      } catch(SSLPeerUnverifiedException e1) {
-        log.trace("Unable to extract peer certificate DN", e1);
-        peerDn = "unknown";
-      }
-      String description = message.getChannel().getRemoteAddress() + " (" + peerDn + ")";
+      String description = message.getChannel().getRemoteAddress() + " (" + getPeerDn(message.getChannel()) + ")";
       log.error("Failed to process " + agentToMaster.getMessageType() + " message, closing connection to " + description, e);
       message.getChannel().close();
     }
     ctx.sendUpstream(message);
+  }
+
+  private static final String getPeerDn(Channel channel) {
+    String peerDn;
+    try {
+      SSLEngine engine = channel.getPipeline().get(SslHandler.class).getEngine();
+      X509Certificate peerCertificate = engine.getSession().getPeerCertificateChain()[0];
+      peerDn = peerCertificate.getSubjectDN().toString();
+    } catch(SSLPeerUnverifiedException e1) {
+      log.trace("Unable to extract peer certificate DN", e1);
+      peerDn = "unknown";
+    }
+    return peerDn;
   }
 
   @Override
@@ -192,19 +209,11 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
   public void operationComplete(ChannelFuture future) throws Exception {
     if(future.isSuccess()) {
       AgentConnection connection = (AgentConnection)future.getChannel().getAttachment();
-      connection.setConnectionState(ConnectionState.CONNECTED);
+      connection.setConnectionState (PENDING_AGENTINFO);
       SSLEngine engine = future.getChannel().getPipeline().get(SslHandler.class).getEngine();
       X509Certificate peerCertificate = engine.getSession().getPeerCertificateChain()[0];
       String description = future.getChannel().getRemoteAddress() + " (" + peerCertificate.getSubjectDN().toString() + ")";
-      log.info("Agent connection complete from " + description);
-      if(callback != null) {
-        try {
-          callback.agentConnected(connection);
-        } catch(Exception e) {
-          log.error("Failed to process connected callback, closing connection to " + description, e);
-          future.getChannel().close();
-        }
-      }
+      log.info("Agent connected (pending receipt of env info etc) from " + description);
     } else {
       future.getChannel().close();
     }
@@ -213,7 +222,7 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
   @Override
   public void channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
     AgentConnection connection = (AgentConnection)ctx.getChannel().getAttachment();
-    connection.setConnectionState(ConnectionState.CLOSED);
+    connection.setConnectionState(CLOSED);
     agentConnections.remove(connection);
     ctx.sendUpstream(e);
     log.info("Agent disconnected from " + ctx.getChannel().getRemoteAddress().toString() + " (" + agentConnections.size() + " open connections)");
@@ -242,7 +251,7 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
   public Collection<AgentConnection> getConnectedClients() {
     List<AgentConnection> result = new ArrayList<>();
     for(AgentConnection agentConnection : agentConnections) {
-      if(agentConnection.getConnectionState() == ConnectionState.CONNECTED) {
+      if(agentConnection.getConnectionState() == CONNECTED) {
         result.add(agentConnection);
       }
     }

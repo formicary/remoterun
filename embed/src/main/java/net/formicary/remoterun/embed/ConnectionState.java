@@ -22,5 +22,6 @@ package net.formicary.remoterun.embed;
 public enum ConnectionState {
   CLOSED,
   HANDSHAKING,
+  PENDING_AGENTINFO,
   CONNECTED
 }
