@@ -45,6 +45,7 @@ public class ProcessHandler implements ReadCallback {
       RemoteRun.MasterToAgent.RunCommand runCommand = message.getRunCommand();
       try {
         // start the process
+        log.info("Starting process: {}", message);
         ProcessHelper processHelper = new ProcessHelper(requestId, runCommand.getCmd(), runCommand.getArgsList(), this);
         processes.put(requestId, processHelper);
         // write a success reply
