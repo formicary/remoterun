@@ -95,9 +95,11 @@ public class ProcessHandler implements ReadCallback {
           .setMessageType(RemoteRun.AgentToMaster.MessageType.EXITED)
           .setRequestId(serverId);
         try {
-          msgBuilder.setExitCode(processHelper.getProcess().waitFor());
+          int exitCode = processHelper.getProcess().waitFor();
+          log.info("Process exited: requestId={} exitCode={}", serverId, exitCode);
+          msgBuilder.setExitCode(exitCode);
         } catch(InterruptedException e) {
-          log.error("Interrupted whilst waiting for process exit code", e);
+          log.error("Interrupted whilst waiting for process exit code: requestId=" + serverId, e);
         }
         messageWriter.write(msgBuilder.build());
       }
