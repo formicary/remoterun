@@ -16,6 +16,7 @@
 
 package net.formicary.remoterun.agent;
 
+import java.lang.management.ManagementFactory;
 import java.net.*;
 import java.nio.file.Paths;
 import java.util.*;
@@ -40,6 +41,7 @@ import org.jboss.netty.handler.ssl.SslHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static net.formicary.remoterun.common.RemoteRunConstants.AGENT_NAME_SYSTEM_PROPERTY;
 import static net.formicary.remoterun.common.proto.RemoteRun.AgentToMaster.AgentInfo;
 import static net.formicary.remoterun.common.proto.RemoteRun.AgentToMaster.MessageType.*;
 import static net.formicary.remoterun.common.proto.RemoteRun.MasterToAgent.MessageType.*;
@@ -65,6 +67,14 @@ public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutur
   private Timer timer;
   private ChannelFuture lastWriteFuture;
   private AgentInfo agentInfo;
+
+  static {
+    try {
+      System.setProperty(AGENT_NAME_SYSTEM_PROPERTY, ManagementFactory.getRuntimeMXBean().getName());
+    } catch(Exception e) {
+      log.trace("Failed to set " + AGENT_NAME_SYSTEM_PROPERTY + " system property to ManagementFactory.getRuntimeMXBean().getName()", e);
+    }
+  }
 
   public RemoteRunAgent(Executor bossExecutor, Executor workerExecutor, Executor writePool) {
     this.writePool = writePool;
@@ -120,10 +130,6 @@ public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutur
         }
       }
     }
-  }
-
-  private void close() {
-
   }
 
   public static SSLEngine createSslEngine() {
