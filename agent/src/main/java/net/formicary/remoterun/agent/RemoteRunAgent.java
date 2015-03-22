@@ -41,7 +41,7 @@ import org.jboss.netty.handler.ssl.SslHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static net.formicary.remoterun.common.RemoteRunConstants.AGENT_NAME_SYSTEM_PROPERTY;
+import static net.formicary.remoterun.common.RemoteRunHelper.AGENT_NAME_SYSTEM_PROPERTY;
 import static net.formicary.remoterun.common.proto.RemoteRun.AgentToMaster.AgentInfo;
 import static net.formicary.remoterun.common.proto.RemoteRun.AgentToMaster.MessageType.*;
 import static net.formicary.remoterun.common.proto.RemoteRun.MasterToAgent.MessageType.*;
