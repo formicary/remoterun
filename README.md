@@ -38,7 +38,7 @@ Using maven you need this in your pom.xml:
       <dependency>
         <groupId>net.formicary.remoterun</groupId>
         <artifactId>remoterun-embed</artifactId>
-        <version>3.0.1</version>
+        <version>3.0.2</version>
       </dependency>
     </dependencies>
 
