@@ -185,6 +185,42 @@ To run it:
     08:16:00.580 [main] DEBUG n.f.r.common.NettyLoggingHandler - [id: 0xe45373eb, /127.0.0.1:51540 => /127.0.0.1:1081] WRITE: messageType: CLOSE_STDIN requestId: 2
     08:16:00.584 [New I/O worker #1] DEBUG n.f.r.common.NettyLoggingHandler - [id: 0xe45373eb, /127.0.0.1:51540 => /127.0.0.1:1081] RECEIVED: messageType: EXITED requestId: 2 exitCode: 0
 
+
+## Releasing remoterun
+
+This only applies to the Formicary development team.
+
+You need:
+
+ + Push access to the remoterun github repository, with an API token generated so maven can use that to log in
+ + An account on oss.sonatype.org with access to write to the net.formicary staging repository
+ + Protobuf 2.5.0 installed
+
+Ensure the github and remoterun credentials are in your .m2/settings.xml as follows:
+
+    <servers>
+      <server>
+         <id>github</id>
+         <password>abcd</password>
+      </server>
+      <server>
+           <id>sonatype</id>
+           <username>myusername</username>
+           <password>{abcd}</password>
+       </server>
+    </servers>
+
+You can then run the following to increment the version numbers and tag in github.
+You might not need the arguments, depending on whether protobuf 2.5.0 is in your path.
+
+    mvn release:prepare -Darguments=-DprotocExecutable=/usr/local/Cellar/protobuf/2.5.0/bin/protoc
+
+Then publish to oss.sonatype.org:
+
+    mvn release:perform '-Darguments=-DprotocExecutable=/usr/local/Cellar/protobuf/2.5.0/bin/protoc -DaltDeploymentRepository=sonatype::default::https://oss.sonatype.org/service/local/staging/deploy/maven2/'
+
+On oss.sonatype.org you can then browse to the staging repo, close it, and assuming all tests are clean, release it.
+
 ## Licensing
 
 Copyright 2015 Formicary Ltd
