@@ -30,7 +30,7 @@ import static net.formicary.remoterun.common.proto.RemoteRun.AgentToMaster.Messa
  */
 public class OutputReader extends Thread {
   private static final Logger log = LoggerFactory.getLogger(OutputReader.class);
-  private static final int BUFFER_SIZE = 1048576;
+  private static final int BUFFER_SIZE = 1047552;
   private final ByteBuffer buffer = ByteBuffer.wrap(new byte[BUFFER_SIZE]);
   private final InputStream stream;
   private final long serverId;
