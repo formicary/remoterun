@@ -20,7 +20,7 @@ import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import net.formicary.remoterun.embed.AgentConnection;
+import net.formicary.remoterun.embed.IAgentConnection;
 import net.formicary.remoterun.embed.RemoteRunMaster;
 import net.formicary.remoterun.embed.callback.AbstractAgentConnectionCallback;
 import net.formicary.remoterun.embed.callback.FileDownloadCallback;
@@ -37,14 +37,14 @@ public class DownloadingMaster {
   public static void main(String[] args) {
     new RemoteRunMaster(new AbstractAgentConnectionCallback() {
       @Override
-      public void agentConnected(AgentConnection agentConnection) {
+      public void agentConnected(IAgentConnection agentConnection) {
         // on connect download a file
         downloadFrom(agentConnection);
       }
     }).bind(new InetSocketAddress(1081));
   }
 
-  private static void downloadFrom(AgentConnection agentConnection) {
+  private static void downloadFrom(IAgentConnection agentConnection) {
     try {
       final Path tempDirectory = Files.createTempDirectory("RemoteRunExample_DownloadingMaster");
       agentConnection.download(REMOTE_SOURCE_FILE, tempDirectory, new FileDownloadCallback() {

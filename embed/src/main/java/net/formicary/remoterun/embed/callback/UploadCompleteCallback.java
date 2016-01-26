@@ -16,11 +16,11 @@
 
 package net.formicary.remoterun.embed.callback;
 
-import net.formicary.remoterun.embed.AgentConnection;
+import net.formicary.remoterun.embed.IAgentConnection;
 
 /**
  * @author Chris Pearson
  */
 public interface UploadCompleteCallback {
-  void uploadComplete(AgentConnection agent, long requestId, String targetPath, boolean success);
+  void uploadComplete(IAgentConnection agent, long requestId, String targetPath, boolean success);
 }

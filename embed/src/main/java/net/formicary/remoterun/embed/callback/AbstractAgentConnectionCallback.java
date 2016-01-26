@@ -17,7 +17,7 @@
 package net.formicary.remoterun.embed.callback;
 
 import net.formicary.remoterun.common.proto.RemoteRun;
-import net.formicary.remoterun.embed.AgentConnection;
+import net.formicary.remoterun.embed.IAgentConnection;
 
 /**
  * Convenience class to avoid having to implement all methods in AgentConnectionCallback.
@@ -26,17 +26,17 @@ import net.formicary.remoterun.embed.AgentConnection;
  */
 public class AbstractAgentConnectionCallback implements AgentConnectionCallback {
   @Override
-  public void agentConnected(AgentConnection agentConnection) {
+  public void agentConnected(IAgentConnection agentConnection) {
 
   }
 
   @Override
-  public void messageReceived(AgentConnection agentConnection, RemoteRun.AgentToMaster message) throws Exception {
+  public void messageReceived(IAgentConnection agentConnection, RemoteRun.AgentToMaster message) throws Exception {
 
   }
 
   @Override
-  public void agentDisconnected(AgentConnection agentConnection) {
+  public void agentDisconnected(IAgentConnection agentConnection) {
 
   }
 }

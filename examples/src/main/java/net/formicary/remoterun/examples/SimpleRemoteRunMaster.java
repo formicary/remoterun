@@ -19,11 +19,11 @@ package net.formicary.remoterun.examples;
 import java.net.InetSocketAddress;
 
 import net.formicary.remoterun.common.proto.RemoteRun;
-import net.formicary.remoterun.embed.AgentConnection;
+import net.formicary.remoterun.embed.IAgentConnection;
 import net.formicary.remoterun.embed.RemoteRunMaster;
-import net.formicary.remoterun.embed.request.TextOutputRequest;
+import net.formicary.remoterun.embed.callback.AbstractAgentConnectionCallback;
 import net.formicary.remoterun.embed.callback.AbstractTextOutputCallback;
-import net.formicary.remoterun.embed.callback.AgentConnectionCallback;
+import net.formicary.remoterun.embed.request.TextOutputRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +37,7 @@ import static net.formicary.remoterun.embed.request.MessageHelper.runCommand;
  *
  * @author Chris Pearson
  */
-public class SimpleRemoteRunMaster implements AgentConnectionCallback {
+public class SimpleRemoteRunMaster extends AbstractAgentConnectionCallback {
   private static final Logger log = LoggerFactory.getLogger(SimpleRemoteRunMaster.class);
 
   public static void main(String[] args) {
@@ -54,7 +54,7 @@ public class SimpleRemoteRunMaster implements AgentConnectionCallback {
     } catch(InterruptedException ignored) {
     }
     // run a command on all connected clients
-    for(AgentConnection connection : master.getConnectedClients()) {
+    for(IAgentConnection connection : master.getConnectedClients()) {
       connection.write(RemoteRun.MasterToAgent.newBuilder()
         .setMessageType(RUN_COMMAND)
         .setRequestId(RemoteRunMaster.getNextRequestId())
@@ -71,21 +71,11 @@ public class SimpleRemoteRunMaster implements AgentConnectionCallback {
   }
 
   @Override
-  public void agentConnected(final AgentConnection agentConnection) {
+  public void agentConnected(final IAgentConnection agentConnection) {
     // as soon as an agent connects, run a command
     agentConnection.request(new TextOutputRequest(runCommand("echo", "Hello World!"), new AbstractTextOutputCallback() {
       // nothing overridden because we don't actually want to do anything with the command - pretty unusual, we'd
       // normally want to check at least the exit code to check if it succeeded or failed
     }));
-  }
-
-  @Override
-  public void messageReceived(AgentConnection agentConnection, RemoteRun.AgentToMaster message) throws Exception {
-    // nothing needs doing here
-  }
-
-  @Override
-  public void agentDisconnected(AgentConnection agentConnection) {
-    // nothing needs doing here
   }
 }

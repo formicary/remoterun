@@ -27,8 +27,7 @@ import java.util.concurrent.Executors;
 import com.google.protobuf.ByteString;
 import net.formicary.remoterun.common.RemoteRunException;
 import net.formicary.remoterun.common.proto.RemoteRun;
-import net.formicary.remoterun.embed.AgentConnection;
-import net.formicary.remoterun.embed.callback.AgentConnectionCallback;
+import net.formicary.remoterun.embed.IAgentConnection;
 import net.formicary.remoterun.embed.RemoteRunMaster;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.text.StrTokenizer;
@@ -66,7 +65,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author Chris Pearson
  */
-public class Server implements AgentConnectionCallback {
+public class Server {
   private static final Logger log = LoggerFactory.getLogger(Server.class);
   private RemoteRunMaster remoteRunMaster;
 
@@ -75,7 +74,7 @@ public class Server implements AgentConnectionCallback {
   }
 
   public void run() {
-    remoteRunMaster = new RemoteRunMaster(Executors.newCachedThreadPool(), Executors.newCachedThreadPool(), this);
+    remoteRunMaster = new RemoteRunMaster(Executors.newCachedThreadPool(), Executors.newCachedThreadPool(), null);
     InetSocketAddress bindAddress = new InetSocketAddress(1081);
     remoteRunMaster.bind(bindAddress);
 
@@ -107,10 +106,10 @@ public class Server implements AgentConnectionCallback {
   }
 
   private void listClientConnections() {
-    Set<AgentConnection> agentConnections = remoteRunMaster.getAgentConnections();
+    Set<IAgentConnection> agentConnections = remoteRunMaster.getAgentConnections();
     int count = 0;
-    for(AgentConnection agentConnection : agentConnections) {
-      log.info((++count) + ": " + agentConnection.getConnectionState().name() + " " + agentConnection.getChannel().getRemoteAddress());
+    for(IAgentConnection agentConnection : agentConnections) {
+      log.info((++count) + ": " + agentConnection.getConnectionState().name() + " " + agentConnection.getAgentInfo().getHostname());
     }
     log.info("Finished listing " + agentConnections.size() + " agent connections");
   }
@@ -122,17 +121,17 @@ public class Server implements AgentConnectionCallback {
     tokens.remove(0); // first token is the run command
     String command = tokens.remove(0);
 
-    Collection<AgentConnection> connectedClients = remoteRunMaster.getConnectedClients();
+    Collection<IAgentConnection> connectedClients = remoteRunMaster.getConnectedClients();
     if(connectedClients.isEmpty()) {
       log.error("Unable to send command: no agent connections");
     } else {
-      AgentConnection connection = connectedClients.iterator().next();
+      IAgentConnection connection = connectedClients.iterator().next();
 
       RemoteRun.MasterToAgent.Builder builder = RemoteRun.MasterToAgent.newBuilder()
         .setMessageType(RemoteRun.MasterToAgent.MessageType.RUN_COMMAND)
         .setRequestId(RemoteRunMaster.getNextRequestId());
       builder.getRunCommandBuilder().setCmd(command).addAllArgs(tokens);
-      connection.getChannel().write(builder.build());
+      connection.write(builder.build());
     }
   }
 
@@ -144,16 +143,16 @@ public class Server implements AgentConnectionCallback {
     long id = Long.parseLong(tokens.remove(0));
     String input = StringUtils.join(tokens, ' ').replaceAll("\\\\n", "\n");
 
-    Collection<AgentConnection> connectedClients = remoteRunMaster.getConnectedClients();
+    Collection<IAgentConnection> connectedClients = remoteRunMaster.getConnectedClients();
     if(connectedClients.isEmpty()) {
       log.error("Unable to send command: no agent connections");
     } else {
-      AgentConnection connection = connectedClients.iterator().next();
+      IAgentConnection connection = connectedClients.iterator().next();
       RemoteRun.MasterToAgent.Builder builder = RemoteRun.MasterToAgent.newBuilder()
         .setMessageType(RemoteRun.MasterToAgent.MessageType.STDIN_FRAGMENT)
         .setRequestId(id)
         .setFragment(ByteString.copyFromUtf8(input));
-      connection.getChannel().write(builder.build());
+      connection.write(builder.build());
     }
   }
 
@@ -164,28 +163,13 @@ public class Server implements AgentConnectionCallback {
     tokens.remove(0); // first token is the run command
     long id = Long.parseLong(tokens.remove(0));
 
-    Collection<AgentConnection> connectedClients = remoteRunMaster.getConnectedClients();
+    Collection<IAgentConnection> connectedClients = remoteRunMaster.getConnectedClients();
     if(connectedClients.isEmpty()) {
       log.error("Unable to send command: no agent connections");
     } else {
-      AgentConnection connection = connectedClients.iterator().next();
+      IAgentConnection connection = connectedClients.iterator().next();
       RemoteRun.MasterToAgent.Builder builder = RemoteRun.MasterToAgent.newBuilder().setMessageType(RemoteRun.MasterToAgent.MessageType.CLOSE_STDIN).setRequestId(id);
-      connection.getChannel().write(builder.build());
+      connection.write(builder.build());
     }
-  }
-
-  @Override
-  public void agentConnected(AgentConnection agentConnection) {
-
-  }
-
-  @Override
-  public void messageReceived(AgentConnection agentConnection, RemoteRun.AgentToMaster message) {
-
-  }
-
-  @Override
-  public void agentDisconnected(AgentConnection agentConnection) {
-
   }
 }
