@@ -70,24 +70,24 @@ follows:
 
     RemoteRunMaster master = new RemoteRunMaster(new AgentConnectionCallback() {
       @Override
-      public void agentConnected(AgentConnection agentConnection) {
+      public void agentConnected(IAgentConnection agentConnection) {
       }
 
       @Override
-      public void messageReceived(AgentConnection agentConnection, RemoteRun.AgentToMaster message) throws Exception {
+      public void messageReceived(IAgentConnection agentConnection, RemoteRun.AgentToMaster message) throws Exception {
       }
 
       @Override
-      public void agentDisconnected(AgentConnection agentConnection) {
+      public void agentDisconnected(IAgentConnection agentConnection) {
       }
     });
 
 To obtain the list of connected agents at a later point, you can use RemoteRunMaster.getConnectedClients:
 
-    for(AgentConnection connection : master.getConnectedClients()) {
+    for(IAgentConnection connection : master.getConnectedClients()) {
     }
 
-Once you have an AgentConnection object, you can run a command on an agent as follows:
+Once you have an IAgentConnection object, you can run a command on an agent as follows:
 
     RemoteRun.MasterToAgent.Builder command = MessageHelper.runCommand("/bin/echo", "Hello World!");
     TextOutputCallback callback = new TextOutputCallback() {
@@ -115,7 +115,7 @@ To send a file or directory to the agent:
 
     connection.upload(sourcePath, targetRootDirectory, new UploadCompleteCallback() {
       @Override
-      public void uploadComplete(AgentConnection agent, long requestId, String targetPath, boolean success) {
+      public void uploadComplete(IAgentConnection agent, long requestId, String targetPath, boolean success) {
         // do something on upload completion
       }
     });

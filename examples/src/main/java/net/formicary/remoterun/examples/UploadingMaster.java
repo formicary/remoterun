@@ -21,7 +21,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import net.formicary.remoterun.embed.AgentConnection;
+import net.formicary.remoterun.embed.IAgentConnection;
 import net.formicary.remoterun.embed.RemoteRunMaster;
 import net.formicary.remoterun.embed.callback.AbstractAgentConnectionCallback;
 import net.formicary.remoterun.embed.callback.UploadCompleteCallback;
@@ -38,19 +38,19 @@ public class UploadingMaster {
   public static void main(String[] args) {
     new RemoteRunMaster(new AbstractAgentConnectionCallback() {
       @Override
-      public void agentConnected(AgentConnection agentConnection) {
+      public void agentConnected(IAgentConnection agentConnection) {
         // on connect upload a file
         uploadTo(agentConnection);
       }
     }).bind(new InetSocketAddress(1081));
   }
 
-  private static void uploadTo(AgentConnection agentConnection) {
+  private static void uploadTo(IAgentConnection agentConnection) {
     try {
       final Path tempDirectory = Files.createTempDirectory("RemoteRunExample_UploadingMaster");
       agentConnection.upload(Paths.get(LOCAL_SOURCE_FILE), tempDirectory.toString(), new UploadCompleteCallback() {
         @Override
-        public void uploadComplete(AgentConnection agent, long requestId, String targetPath, boolean success) {
+        public void uploadComplete(IAgentConnection agent, long requestId, String targetPath, boolean success) {
           log.info("File upload of {} to {} complete, success={}", LOCAL_SOURCE_FILE, tempDirectory, success);
         }
       });

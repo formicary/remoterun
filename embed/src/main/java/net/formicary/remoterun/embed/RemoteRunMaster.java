@@ -51,7 +51,7 @@ import static net.formicary.remoterun.embed.ConnectionState.*;
 public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutureListener {
   private static final Logger log = LoggerFactory.getLogger(RemoteRunMaster.class);
   private static final AtomicLong NEXT_REQUEST_ID = new AtomicLong();
-  private final Set<AgentConnection> agentConnections = new CopyOnWriteArraySet<>();
+  private final Set<IAgentConnection> agentConnections = new CopyOnWriteArraySet<>();
   private final ServerBootstrap bootstrap;
   private AgentConnectionCallback callback;
 
@@ -107,6 +107,9 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
     return NEXT_REQUEST_ID.getAndIncrement();
   }
 
+  /**
+   * Get the registered callback. Can be null.
+   */
   public AgentConnectionCallback getCallback() {
     return callback;
   }
@@ -182,7 +185,7 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
     ctx.sendUpstream(message);
   }
 
-  private static final String getPeerDn(Channel channel) {
+  private static String getPeerDn(Channel channel) {
     String peerDn;
     try {
       SSLEngine engine = channel.getPipeline().get(SslHandler.class).getEngine();
@@ -232,12 +235,12 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
     }
   }
 
-  public Set<AgentConnection> getAgentConnections() {
+  public Set<IAgentConnection> getAgentConnections() {
     return agentConnections;
   }
 
   public void shutdown() {
-    for(AgentConnection agentConnection : agentConnections) {
+    for(IAgentConnection agentConnection : agentConnections) {
       agentConnection.shutdown();
     }
     bootstrap.shutdown();
@@ -249,9 +252,9 @@ public class RemoteRunMaster extends SimpleChannelHandler implements ChannelFutu
    *
    * @return a fresh list, can be modified as you wish
    */
-  public Collection<AgentConnection> getConnectedClients() {
-    List<AgentConnection> result = new ArrayList<>();
-    for(AgentConnection agentConnection : agentConnections) {
+  public Collection<IAgentConnection> getConnectedClients() {
+    List<IAgentConnection> result = new ArrayList<>();
+    for(IAgentConnection agentConnection : agentConnections) {
       if(agentConnection.getConnectionState() == CONNECTED) {
         result.add(agentConnection);
       }

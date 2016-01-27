@@ -24,9 +24,9 @@ import java.util.concurrent.Executors;
 import net.formicary.remoterun.common.FileReceiver;
 import net.formicary.remoterun.common.IoUtils;
 import net.formicary.remoterun.common.proto.RemoteRun;
-import net.formicary.remoterun.embed.AgentConnection;
-import net.formicary.remoterun.embed.callback.AgentConnectionCallback;
+import net.formicary.remoterun.embed.IAgentConnection;
 import net.formicary.remoterun.embed.RemoteRunMaster;
+import net.formicary.remoterun.embed.callback.AgentConnectionCallback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,13 +55,13 @@ public class FileServer implements AgentConnectionCallback {
   }
 
   @Override
-  public void agentConnected(final AgentConnection agentConnection) {
+  public void agentConnected(final IAgentConnection agentConnection) {
     // sending a file
     uploadId = agentConnection.upload(Paths.get(DEMO_REQUEST_PATH), "demopath", null);
   }
 
   @Override
-  public void messageReceived(AgentConnection agentConnection, RemoteRun.AgentToMaster message) throws Exception {
+  public void messageReceived(IAgentConnection agentConnection, RemoteRun.AgentToMaster message) throws Exception {
     if(message.getMessageType() == RECEIVED_DATA && message.getRequestId() == uploadId) {
       log.info("Completed receipt of system.log, re-downloading...");
       // now we've sent a file to the agent, re-download
@@ -92,6 +92,6 @@ public class FileServer implements AgentConnectionCallback {
   }
 
   @Override
-  public void agentDisconnected(AgentConnection agentConnection) {
+  public void agentDisconnected(IAgentConnection agentConnection) {
   }
 }

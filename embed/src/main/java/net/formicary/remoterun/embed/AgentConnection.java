@@ -40,7 +40,7 @@ import static net.formicary.remoterun.common.proto.RemoteRun.MasterToAgent.Messa
 /**
  * @author Chris Pearson
  */
-public class AgentConnection {
+public class AgentConnection implements IAgentConnection {
   private static final Logger log = LoggerFactory.getLogger(AgentConnection.class);
   private final ReentrantLock writeLock = new ReentrantLock(true);
   private final Map<Long, AgentRequest> requestHandlers = new ConcurrentHashMap<>();
@@ -64,10 +64,12 @@ public class AgentConnection {
     this.channel = channel;
   }
 
+  @Override
   public ConnectionState getConnectionState() {
     return connectionState;
   }
 
+  @Override
   public void setConnectionState(ConnectionState connectionState) {
     this.connectionState = connectionState;
   }
@@ -76,29 +78,22 @@ public class AgentConnection {
     return remoteAddress;
   }
 
+  @Override
   public AgentInfo getAgentInfo() {
     return agentInfo;
   }
 
+  @Override
   public void setAgentInfo(AgentInfo agentInfo) {
     this.agentInfo = agentInfo;
   }
 
-  /**
-   * Disconnect this agent.
-   */
+  @Override
   public void shutdown() {
     channel.close();
   }
 
-  /**
-   * Initiate the upload of a file from master to agent.
-   *
-   * @param localSourcePath path to read and send on this host
-   * @param remoteTargetDirectory where to try and store the data on the target
-   * @param callback callback when the send is complete, can be null
-   * @return unique request ID
-   */
+  @Override
   public long upload(Path localSourcePath, final String remoteTargetDirectory, final UploadCompleteCallback callback) {
     final long requestId = RemoteRunMaster.getNextRequestId();
     write(RemoteRun.MasterToAgent.newBuilder()
@@ -134,6 +129,7 @@ public class AgentConnection {
     return requestId;
   }
 
+  @Override
   public long download(String remoteSourcePath, Path localTargetDirectory, FileDownloadCallback callback) {
     return request(new FileDownloadRequest(remoteSourcePath, localTargetDirectory, callback));
   }
@@ -148,6 +144,7 @@ public class AgentConnection {
       '}';
   }
 
+  @Override
   public long request(AgentRequest message) {
     RemoteRun.MasterToAgent msg = message.getMessage();
     if(!msg.hasRequestId()) {
@@ -158,10 +155,7 @@ public class AgentConnection {
     return msg.getRequestId();
   }
 
-  /**
-   * Transmit a message that has already been given a unique request ID, and commit to handling the responses yourself
-   * with the AgentConnectionCallback registered.
-   */
+  @Override
   public void write(RemoteRun.MasterToAgent message) {
     // fair write lock to ensure every thread gets a chance to write data, and avoid a single thread hogging the writes
     // if write buffer is full, only one thread will be within the write/waitUntilWriteable call
