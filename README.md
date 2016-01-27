@@ -194,7 +194,7 @@ You need:
 
  + Push access to the remoterun github repository, with an API token generated so maven can use that to log in
  + An account on oss.sonatype.org with access to write to the net.formicary staging repository
- + Protobuf 2.5.0 installed
+ + Protobuf 2.6.1 installed
 
 Ensure the github and remoterun credentials are in your .m2/settings.xml as follows:
 
@@ -211,19 +211,19 @@ Ensure the github and remoterun credentials are in your .m2/settings.xml as foll
     </servers>
 
 You can then run the following to increment the version numbers and tag in github.
-You might not need the arguments, depending on whether protobuf 2.5.0 is in your path.
+You might not need the arguments, depending on whether protobuf 2.6.1 is in your path.
 
-    mvn release:prepare -Darguments=-DprotocExecutable=/usr/local/Cellar/protobuf/2.5.0/bin/protoc
+    mvn release:prepare -Darguments=-DprotocExecutable=/usr/local/Cellar/protobuf/2.6.1/bin/protoc
 
 Then publish to oss.sonatype.org:
 
-    mvn release:perform '-Darguments=-DprotocExecutable=/usr/local/Cellar/protobuf/2.5.0/bin/protoc -DaltDeploymentRepository=sonatype::default::https://oss.sonatype.org/service/local/staging/deploy/maven2/'
+    mvn release:perform '-Darguments=-DprotocExecutable=/usr/local/Cellar/protobuf/2.6.1/bin/protoc -DaltDeploymentRepository=sonatype::default::https://oss.sonatype.org/service/local/staging/deploy/maven2/'
 
 On oss.sonatype.org you can then browse to the staging repo, close it, and assuming all tests are clean, release it.
 
 ## Licensing
 
-Copyright 2015 Formicary Ltd
+Copyright 2016 Formicary Ltd
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
