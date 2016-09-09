@@ -28,7 +28,7 @@
   <pluginRepositories>
     <pluginRepository>
       <id>protoc-plugin</id>
-      <url>http://sergei-ivanov.github.com/maven-protoc-plugin/repo/releases/</url>
+      <url>https://dl.bintray.com/sergei-ivanov/maven</url>
     </pluginRepository>
   </pluginRepositories>
   <build>
