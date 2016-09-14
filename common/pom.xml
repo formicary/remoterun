@@ -26,26 +26,23 @@
   <artifactId>remoterun-common</artifactId>
 
   <build>
-    <extensions>
-      <extension>
-        <groupId>kr.motd.maven</groupId>
-        <artifactId>os-maven-plugin</artifactId>
-        <version>1.5.0.Final</version>
-      </extension>
-    </extensions>
+
     <plugins>
       <plugin>
-        <groupId>org.xolstice.maven.plugins</groupId>
-        <artifactId>protobuf-maven-plugin</artifactId>
-        <version>0.5.0</version>
+        <groupId>com.github.os72</groupId>
+        <artifactId>protoc-jar-maven-plugin</artifactId>
+        <version>3.0.0.1</version>
         <executions>
           <execution>
+            <phase>generate-sources</phase>
             <goals>
-              <goal>compile</goal>
-              <goal>test-compile</goal>
+              <goal>run</goal>
             </goals>
             <configuration>
-              <protocArtifact>com.google.protobuf:protoc:2.6.1:exe:${os.detected.classifier}</protocArtifact>
+              <protocVersion>${protobufVersion}</protocVersion>
+              <inputDirectories>
+                <include>src/main/proto</include>
+              </inputDirectories>
             </configuration>
           </execution>
         </executions>
@@ -66,7 +63,7 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>2.6.1</version>
+      <version>${protobufVersion}</version>
     </dependency>
 
     <!-- test -->
