@@ -24,6 +24,9 @@
   <name>RemoteRun Common</name>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>remoterun-common</artifactId>
+  <properties>
+    <protobufVersion>3.0.2</protobufVersion>
+  </properties>
 
   <build>
     <extensions>
@@ -45,7 +48,7 @@
               <goal>test-compile</goal>
             </goals>
             <configuration>
-              <protocArtifact>com.google.protobuf:protoc:2.6.1:exe:${os.detected.classifier}</protocArtifact>
+              <protocArtifact>com.google.protobuf:protoc:${protobufVersion}:exe:${os.detected.classifier}</protocArtifact>
             </configuration>
           </execution>
         </executions>
@@ -66,7 +69,7 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>2.6.1</version>
+      <version>${protobufVersion}</version>
     </dependency>
 
     <!-- test -->
