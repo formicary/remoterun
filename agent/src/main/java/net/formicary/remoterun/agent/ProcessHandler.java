@@ -75,6 +75,13 @@ public class ProcessHandler implements ReadCallback {
       } else {
         processHelper.closeStdIn();
       }
+    } else if(RemoteRun.MasterToAgent.MessageType.KILL_PROCESS == message.getMessageType()) {
+      ProcessHelper processHelper = processes.get(requestId);
+      if(processHelper == null) {
+        log.warn("Ignoring KILL_PROCESS request for invalid request ID " + requestId);
+      } else {
+        processHelper.killProcess();
+      }
     }
   }
 

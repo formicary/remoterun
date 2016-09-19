@@ -105,6 +105,13 @@ message MasterToAgent {
     (requestId, exitCode [if receiving and finished], exitReason [if failed]) populated
     */
     SEND_DATA_FRAGMENT = 6;
+
+    /*
+    (requestId, path) populated
+
+    An instruction to terminate the process associated with requestId.
+    */
+    KILL_PROCESS = 7;
   }
 
   message RunCommand {
