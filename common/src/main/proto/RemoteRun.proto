@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+syntax="proto2";
 option java_package = "net.formicary.remoterun.common.proto";
 
 message MasterToAgent {
@@ -104,6 +105,13 @@ message MasterToAgent {
     (requestId, exitCode [if receiving and finished], exitReason [if failed]) populated
     */
     SEND_DATA_FRAGMENT = 6;
+
+    /*
+    (requestId, path) populated
+
+    An instruction to terminate the process associated with requestId.
+    */
+    KILL_PROCESS = 7;
   }
 
   message RunCommand {

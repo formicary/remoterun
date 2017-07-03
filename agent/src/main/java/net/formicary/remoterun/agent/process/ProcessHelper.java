@@ -90,4 +90,8 @@ public class ProcessHelper {
   public void closeStdIn() {
     stdin.shutdown();
   }
+
+  public void killProcess() {
+    process.destroy();
+  }
 }

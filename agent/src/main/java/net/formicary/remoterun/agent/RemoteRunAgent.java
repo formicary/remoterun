@@ -249,7 +249,7 @@ public class RemoteRunAgent extends SimpleChannelHandler implements ChannelFutur
       }));
 
     } else {
-      if(type == RUN_COMMAND || type == STDIN_FRAGMENT || type == CLOSE_STDIN) {
+      if(type == RUN_COMMAND || type == STDIN_FRAGMENT || type == CLOSE_STDIN || type == KILL_PROCESS) {
         writePool.execute(new Runnable() {
           @Override
           public void run() {

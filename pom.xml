@@ -80,8 +80,6 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <jdk.version>1.7</jdk.version>
-    <!-- mvn clean compile -DprotocExecutable=/usr/local/bin/protoc -->
-    <protocExecutable>/usr/bin/protoc</protocExecutable>
   </properties>
 
   <build>
