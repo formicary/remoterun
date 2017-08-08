@@ -74,6 +74,7 @@ public class AgentConnection implements IAgentConnection {
     this.connectionState = connectionState;
   }
 
+  @Override
   public SocketAddress getRemoteAddress() {
     return remoteAddress;
   }
