@@ -1,5 +1,6 @@
 package net.formicary.remoterun.embed;
 
+import java.net.SocketAddress;
 import java.nio.file.Path;
 
 import net.formicary.remoterun.common.proto.RemoteRun;
@@ -14,6 +15,8 @@ public interface IAgentConnection {
   ConnectionState getConnectionState();
 
   void setConnectionState(ConnectionState connectionState);
+
+  SocketAddress getRemoteAddress();
 
   RemoteRun.AgentToMaster.AgentInfo getAgentInfo();
 
